@@ -1,4 +1,6 @@
 # teeter
+![](docs/images/teeter.webp)
+
 A [narrow-gauge](https://en.wikipedia.org/wiki/Narrow-gauge_railway) mod manager for AzerothCore. Some assembly required.
 
 > Up and awa ... oh!
