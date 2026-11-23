@@ -39,8 +39,9 @@ teeter --help
 
 ## Documentation
 
-* [Design & Architecture](docs/design.md) *(coming soon)*
+* [Design & Architecture](docs/design.md)
 * [Manifest Specification](docs/manifest.md) *(coming soon)*
+* [Caveat Emptor](docs/caveats.md)
 
 ## License
 
