@@ -9,7 +9,9 @@ A [narrow-gauge](https://en.wikipedia.org/wiki/Narrow-gauge_railway) mod manager
 
 If you've ever modded Skyrim (for me it was "Oldrim") you'll know there are excellent tools to customize your virtual world. Such is not the case for a lesser-known open world solo RPG, namely `AzerothCore-WotLK`, played solo with `mod-playerbots`.
 
-I know. A table for one, and a `CLOSED` sign on the door of this massively multiplayer online role-playing game? When I play with other people, I prefer the official [World of Warcraft](https://worldofwarcraft.blizzard.com/en-us/) experience. When I want to sharpen my DevOps skills, I build the Azeroth equivalent of a train set in the basement, and when it falls down, nobody's progression is hampered.
+I know. A table for one, and a `CLOSED` sign on the door of this massively multiplayer online role-playing game? When I play with other people, I prefer the official [World of Warcraft](https://worldofwarcraft.blizzard.com/en-us/) experience. When I want to sharpen my DevOps skills, I build the Azeroth equivalent of a train set in the basement. When that falls down, no world firsts are delayed, and nobody's progress comes to a halt ...
+
+... and I get to be a GM (when I lose patience).
 
 ## Assumptions
 
