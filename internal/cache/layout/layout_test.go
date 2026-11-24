@@ -37,7 +37,7 @@ func TestModuleSourceDir(t *testing.T) {
 	configGetCacheDir = func() string { return "/test/cache" }
 
 	dir := ModuleSourceDir("mod-playerbots", "master")
-	assert.Equal(t, "/test/cache/modules/mod-playerbots/master/modules/mod-playerbots", dir)
+	assert.Equal(t, "/test/cache/modules/mod-playerbots/master/master", dir)
 }
 
 func TestACoreCacheDir(t *testing.T) {

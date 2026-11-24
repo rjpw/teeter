@@ -99,7 +99,7 @@ func (c *FSCache) moduleCacheDir(name, version string) string {
 }
 
 func (c *FSCache) moduleSourceDir(name, version string) string {
-	return filepath.Join(c.moduleCacheDir(name, version), "modules", name)
+	return filepath.Join(c.moduleCacheDir(name, version), version)
 }
 
 func (c *FSCache) acoreCacheDir(commit string) string {
@@ -143,17 +143,23 @@ func (c *FSCache) PutModule(ctx context.Context, name, version, repoURL, commit 
 	}
 
 	worktreeDir := filepath.Join(cacheDir, version)
+	// Use commit if available, otherwise use version (branch name)
+	ref := commit
+	if ref == "" {
+		ref = version
+	}
+
 	if _, err := os.Stat(worktreeDir); os.IsNotExist(err) {
-		cmd := exec.CommandContext(ctx, "git", "-C", gitDir, "worktree", "add", worktreeDir, commit)
+		cmd := exec.CommandContext(ctx, "git", "-C", gitDir, "worktree", "add", worktreeDir, ref)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git worktree add: %w: %s", err, out)
 		}
 	} else {
-		cmd := exec.CommandContext(ctx, "git", "-C", worktreeDir, "fetch", "origin", commit)
+		cmd := exec.CommandContext(ctx, "git", "-C", worktreeDir, "fetch", "origin", ref)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git fetch: %w: %s", err, out)
 		}
-		cmd = exec.CommandContext(ctx, "git", "-C", worktreeDir, "reset", "--hard", commit)
+		cmd = exec.CommandContext(ctx, "git", "-C", worktreeDir, "reset", "--hard", ref)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git reset: %w: %s", err, out)
 		}

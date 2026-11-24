@@ -23,9 +23,8 @@ func LinkModules(ctx context.Context, bc *BuildContext, c cache.Cache, strategy 
 			return fmt.Errorf("get module %s from cache: %w", name, err)
 		}
 
-		// The module source is at modules/<name>/ inside the cache dir
-		moduleSrc := filepath.Join(srcPath, "modules", name)
-
+		// The module source is the worktree returned by GetModule
+		moduleSrc := srcPath
 		// Link to build context
 		dstPath := filepath.Join(bc.Path, "modules", name)
 		if err := linkDir(moduleSrc, dstPath, strategy); err != nil {
@@ -33,7 +32,7 @@ func LinkModules(ctx context.Context, bc *BuildContext, c cache.Cache, strategy 
 		}
 
 		// Verify module structure
-		if err := verifyModuleStructure(dstPath); err != nil {
+		if err := verifyModuleStructure(dstPath, name); err != nil {
 			return fmt.Errorf("verify module %s: %w", name, err)
 		}
 
@@ -43,23 +42,29 @@ func LinkModules(ctx context.Context, bc *BuildContext, c cache.Cache, strategy 
 }
 
 // verifyModuleStructure checks that the linked module has expected structure.
-func verifyModuleStructure(path string) error {
-	// Check for CMakeLists.txt
-	cmakePath := filepath.Join(path, "CMakeLists.txt")
-	if _, err := os.Stat(cmakePath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("missing CMakeLists.txt")
-		}
-		return err
-	}
-
-	// Check for src/ directory
+func verifyModuleStructure(path, moduleName string) error {
+	// Check for src/ directory (required)
 	srcPath := filepath.Join(path, "src")
 	if _, err := os.Stat(srcPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("missing src/ directory")
 		}
 		return err
+	}
+
+	// Check for CMakeLists.txt or <module>.cmake (warn if missing, not fatal)
+	cmakePath := filepath.Join(path, "CMakeLists.txt")
+	moduleCmakePath := filepath.Join(path, moduleName+".cmake")
+	hasCMake := false
+	if _, err := os.Stat(cmakePath); err == nil {
+		hasCMake = true
+	}
+	if _, err := os.Stat(moduleCmakePath); err == nil {
+		hasCMake = true
+	}
+	if !hasCMake {
+		// Log warning but don't fail - some modules (scripts, configs) don't need CMake
+		fmt.Fprintf(os.Stderr, "Warning: module %s has no CMakeLists.txt or %s.cmake\n", moduleName, moduleName)
 	}
 
 	return nil

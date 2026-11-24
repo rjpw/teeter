@@ -142,13 +142,14 @@ func resolveModule(ctx context.Context, spec manifest.ModuleSpec, m *manifest.Ma
 		rm.Commit = commit
 		rm.Version = version
 
-		// Dependencies: union of manifest and catalogue
+		// Dependencies: union of manifest and catalogue (rich format)
 		depMap := make(map[string]bool)
 		for _, d := range spec.DependsOn {
 			depMap[d] = true
 		}
 		for _, d := range entry.Dependencies {
-			depMap[d] = true
+			// d is now DependencySpec, extract name
+			depMap[d.Name] = true
 		}
 		rm.Dependencies = mapKeys(depMap)
 

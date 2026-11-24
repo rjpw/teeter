@@ -14,8 +14,8 @@ import (
 func TestLinkModules(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create a mock cache with module source
-	srcCacheDir := filepath.Join(tmpDir, "cache", "modules", "mod-test", "v1.0.0", "modules", "mod-test")
+	// Create a mock cache with module source (new worktree structure)
+	srcCacheDir := filepath.Join(tmpDir, "cache", "modules", "mod-test", "v1.0.0", "v1.0.0")
 	os.MkdirAll(filepath.Join(srcCacheDir, "src"), 0755)
 	os.WriteFile(filepath.Join(srcCacheDir, "CMakeLists.txt"), []byte("cmake_minimum_required(VERSION 3.10)"), 0644)
 	os.WriteFile(filepath.Join(srcCacheDir, "src", "test.cpp"), []byte("// test"), 0644)
@@ -80,29 +80,39 @@ func TestLinkModules(t *testing.T) {
 func TestVerifyModuleStructure(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Valid module
+	// Valid module with CMakeLists.txt
 	validDir := filepath.Join(tmpDir, "valid")
 	os.MkdirAll(filepath.Join(validDir, "src"), 0755)
 	os.WriteFile(filepath.Join(validDir, "CMakeLists.txt"), []byte("cmake"), 0644)
 
-	err := verifyModuleStructure(validDir)
+	err := verifyModuleStructure(validDir, "testmod")
 	if err != nil {
 		t.Errorf("valid module failed: %v", err)
 	}
 
-	// Missing CMakeLists.txt
+	// Valid module with .cmake file
+	validCmakeDir := filepath.Join(tmpDir, "valid-cmake")
+	os.MkdirAll(filepath.Join(validCmakeDir, "src"), 0755)
+	os.WriteFile(filepath.Join(validCmakeDir, "testmod.cmake"), []byte("cmake"), 0644)
+
+	err = verifyModuleStructure(validCmakeDir, "testmod")
+	if err != nil {
+		t.Errorf("valid .cmake module failed: %v", err)
+	}
+
+	// Missing CMakeLists.txt and .cmake (should warn but not fail)
 	missingCMake := filepath.Join(tmpDir, "missing-cmake")
 	os.MkdirAll(filepath.Join(missingCMake, "src"), 0755)
-	err = verifyModuleStructure(missingCMake)
-	if err == nil {
-		t.Error("expected error for missing CMakeLists.txt")
+	err = verifyModuleStructure(missingCMake, "testmod")
+	if err != nil {
+		t.Errorf("missing CMakeLists.txt should not fail: %v", err)
 	}
 
 	// Missing src/
 	missingSrc := filepath.Join(tmpDir, "missing-src")
 	os.MkdirAll(missingSrc, 0755)
 	os.WriteFile(filepath.Join(missingSrc, "CMakeLists.txt"), []byte("cmake"), 0644)
-	err = verifyModuleStructure(missingSrc)
+	err = verifyModuleStructure(missingSrc, "testmod")
 	if err == nil {
 		t.Error("expected error for missing src/")
 	}
@@ -113,7 +123,7 @@ type mockCacheWithModule struct {
 }
 
 func (m *mockCacheWithModule) GetModule(ctx context.Context, name, version string) (string, error) {
-	return m.moduleSrc, nil
+	return filepath.Join(m.moduleSrc, version), nil
 }
 func (m *mockCacheWithModule) PutModule(ctx context.Context, name, version, repoURL, commit string) error {
 	return nil

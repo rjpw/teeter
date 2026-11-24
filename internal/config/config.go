@@ -95,12 +95,12 @@ func bindFlags(cmd *cobra.Command) {
 
 // AddConfigFlags adds the config-related flags to a command
 func AddConfigFlags(cmd *cobra.Command) {
-	cmd.Flags().String("cache-dir", "", "Cache directory (default: ~/.teeter/cache)")
-	cmd.Flags().String("catalogue-url", "", "Catalogue index URL")
-	cmd.Flags().String("default-acore-repo", "", "Default AC repo URL")
-	cmd.Flags().String("default-acore-branch", "", "Default AC branch")
-	cmd.Flags().String("docker-compose-version", "", "Docker compose version (v1|v2)")
-	cmd.Flags().String("link-strategy", "", "Link strategy (hardlink|symlink|auto)")
+	cmd.PersistentFlags().String("cache-dir", "", "Cache directory (default: ~/.teeter/cache)")
+	cmd.PersistentFlags().String("catalogue-url", "", "Catalogue index URL")
+	cmd.PersistentFlags().String("default-acore-repo", "", "Default AC repo URL")
+	cmd.PersistentFlags().String("default-acore-branch", "", "Default AC branch")
+	cmd.PersistentFlags().String("docker-compose-version", "", "Docker compose version (v1|v2)")
+	cmd.PersistentFlags().String("link-strategy", "", "Link strategy (hardlink|symlink|auto)")
 }
 
 // Get returns the loaded configuration

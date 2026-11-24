@@ -1,0 +1,22 @@
+version: "1"
+project:
+  name: "my-modded-server"
+acore:
+  repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
+  branch: "Playerbot"
+modules:
+  - name: "mod-playerbots"
+    source: "catalogue"
+    version: "master"
+  - name: "mod-dungeonmaster"
+    source: "catalogue"
+    version: "master"
+client_data:
+  source: "local"
+  path: "/tmp/wow-client"
+  extract_maps: false
+  extract_vmaps: false
+  extract_mmaps: false
+environment:
+  vars: {}
+compose: {}

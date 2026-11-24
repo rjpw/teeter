@@ -16,8 +16,8 @@ func TestFSCache_HasModule(t *testing.T) {
 
 	assert.False(t, c.HasModule("mod-test", "v1.0.0"))
 
-	// Create the module directory structure
-	moduleDir := filepath.Join(tmpDir, "modules", "mod-test", "v1.0.0", "modules", "mod-test")
+	// Create the module directory structure (worktree at version/version)
+	moduleDir := filepath.Join(tmpDir, "modules", "mod-test", "v1.0.0", "v1.0.0")
 	require.NoError(t, os.MkdirAll(moduleDir, 0755))
 
 	assert.True(t, c.HasModule("mod-test", "v1.0.0"))

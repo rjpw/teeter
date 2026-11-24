@@ -40,7 +40,7 @@ func TestPullIntegration(t *testing.T) {
 						{TagName: "v1.0.0", TargetSHA: "abc123def456", PublishedAt: "2024-01-01", Prerelease: false},
 					},
 					LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "abc123def456"},
-					Dependencies:  []string{},
+					Dependencies:  []DependencySpec{},
 				},
 				"mod-dungeon-clear": {
 					Name:          "mod-dungeon-clear",
@@ -50,7 +50,7 @@ func TestPullIntegration(t *testing.T) {
 						{TagName: "v2.0.0", TargetSHA: "fed654cba321", PublishedAt: "2024-02-01", Prerelease: false},
 					},
 					LatestRelease: &Release{TagName: "v2.0.0", TargetSHA: "fed654cba321"},
-					Dependencies:  []string{"mod-playerbots"},
+					Dependencies:  []DependencySpec{{Name: "mod-playerbots", Version: "*", Optional: false, Category: "module"}},
 				},
 			},
 		}
@@ -173,8 +173,8 @@ func TestPullIntegration_DependencyResolution(t *testing.T) {
 			FetchedAt: time.Now(),
 			Modules: map[string]ModuleEntry{
 				"mod-a": {Name: "mod-a", RepositoryURL: "https://github.com/test/mod-a", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-a"}},
-				"mod-b": {Name: "mod-b", RepositoryURL: "https://github.com/test/mod-b", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-b"}, Dependencies: []string{"mod-a"}},
-				"mod-c": {Name: "mod-c", RepositoryURL: "https://github.com/test/mod-c", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-c"}, Dependencies: []string{"mod-b"}},
+				"mod-b": {Name: "mod-b", RepositoryURL: "https://github.com/test/mod-b", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-b"}, Dependencies: []DependencySpec{{Name: "mod-a", Version: "*", Optional: false, Category: "module"}}},
+				"mod-c": {Name: "mod-c", RepositoryURL: "https://github.com/test/mod-c", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-c"}, Dependencies: []DependencySpec{{Name: "mod-b", Version: "*", Optional: false, Category: "module"}}},
 			},
 		}
 		json.NewEncoder(w).Encode(index)

@@ -94,7 +94,7 @@ func TestResolve_CatalogueModule(t *testing.T) {
 					{TagName: "v1.0.0", TargetSHA: "abc123def456", PublishedAt: "2024-01-01", Prerelease: false},
 				},
 				LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "abc123def456"},
-				Dependencies:  []string{"mod-dep"},
+				Dependencies:  []DependencySpec{{Name: "mod-dep", Version: "*", Optional: false, Category: "module"}},
 			},
 		},
 	}

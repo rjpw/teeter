@@ -79,6 +79,14 @@ func FetchIndex(ctx context.Context, cfg config.Config) (*Index, error) {
 
 		return &idx, nil
 
+	case http.StatusNotFound:
+		// Index not found on server, fall back to cache
+		cached, err := LoadIndex(indexPath)
+		if err != nil {
+			return nil, fmt.Errorf("load cached index: %w", err)
+		}
+		return cached.Index, nil
+
 	default:
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))

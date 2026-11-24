@@ -79,8 +79,8 @@ RUN mkdir -p build && cd build && \
 # ============================================================
 FROM ac-source AS modules-build
 
-# Copy external module sources
-COPY modules/ ./modules/
+# Copy external module sources INTO AC source modules directory
+COPY modules/ ./azerothcore/modules/
 
 # Build modules (incremental via ccache)
 RUN cd build && make -j${BUILD_JOBS} install

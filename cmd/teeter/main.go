@@ -40,6 +40,7 @@ func main() {
 		commands.NewComposeCmd(),
 		commands.NewBuildCmd(),
 		commands.NewDoctorCmd(),
+		commands.NewCatalogueCmd(),
 		commands.NewUpCmd(),
 		commands.NewDownCmd(),
 		commands.NewPullCmd(),

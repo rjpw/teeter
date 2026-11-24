@@ -16,9 +16,9 @@ func ModuleCacheDir(name, version string) string {
 }
 
 // ModuleSourceDir returns the path to the module source within the cache
-// (i.e., the modules/<name>/ subdirectory inside the version dir)
+// The worktree is at cache/modules/<name>/<version>/<version>/
 func ModuleSourceDir(name, version string) string {
-	return filepath.Join(ModuleCacheDir(name, version), "modules", name)
+	return filepath.Join(ModuleCacheDir(name, version), version)
 }
 
 // ACoreCacheDir returns the cache directory for a specific AC commit
