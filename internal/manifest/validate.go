@@ -196,7 +196,7 @@ func Validate(m *Manifest, manifestDir string) error {
 				Message: "required when source is local",
 			})
 		} else {
-			path := m.ClientData.Path
+			path := expandHome(m.ClientData.Path)
 			if !filepath.IsAbs(path) {
 				path = filepath.Join(manifestDir, path)
 			}

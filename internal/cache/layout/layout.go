@@ -74,6 +74,11 @@ func expandPath(path string) string {
 	return path
 }
 
+// ExpandPath expands a path, resolving ~ to home directory
+func ExpandPath(path string) string {
+	return expandPath(path)
+}
+
 // SetCacheDirGetter sets the function to get the cache dir from config
 // Called from config package to avoid import cycle
 func SetCacheDirGetter(f func() string) {
