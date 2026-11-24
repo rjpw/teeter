@@ -38,6 +38,8 @@ func main() {
 		commands.NewValidateCmd(),
 		commands.NewBuildCtxCmd(),
 		commands.NewComposeCmd(),
+		commands.NewBuildCmd(),
+		commands.NewDoctorCmd(),
 		commands.NewUpCmd(),
 		commands.NewDownCmd(),
 		commands.NewPullCmd(),

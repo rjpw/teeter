@@ -1,0 +1,17 @@
+version: "1"
+project:
+  name: "my-solo-server"
+acore:
+  repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
+  branch: "Playerbot"
+  commit: "a1b2c3d4e5f6"
+modules: []
+client_data:
+  source: "local"
+  path: "/tmp/wow-client"
+  extract_maps: false
+  extract_vmaps: false
+  extract_mmaps: false
+environment:
+  vars: {}
+compose: {}

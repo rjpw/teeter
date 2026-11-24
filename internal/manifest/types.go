@@ -63,10 +63,16 @@ type EnvSpec struct {
 }
 
 type ComposeSpec struct {
-	Network  string                      `yaml:"network,omitempty" json:"network,omitempty"`
-	Volumes  map[string]string           `yaml:"volumes,omitempty" json:"volumes,omitempty"`
-	Profiles []string                    `yaml:"profiles,omitempty" json:"profiles,omitempty"`
-	Services map[string]ServiceExtension `yaml:"services,omitempty" json:"services,omitempty"`
+	Network       string                      `yaml:"network,omitempty" json:"network,omitempty"`
+	Volumes       map[string]string           `yaml:"volumes,omitempty" json:"volumes,omitempty"`
+	Profiles      []string                    `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+	Services      map[string]ServiceExtension `yaml:"services,omitempty" json:"services,omitempty"`
+	BuildStrategy string                      `yaml:"build_strategy,omitempty" json:"build_strategy,omitempty"`
+	BuildMemory   string                      `yaml:"build_memory,omitempty" json:"build_memory,omitempty"`
+	BuildCPUs     string                      `yaml:"build_cpus,omitempty" json:"build_cpus,omitempty"`
+	BuildJobs     int                         `yaml:"build_jobs,omitempty" json:"build_jobs,omitempty"`
+	CCacheMaxSize string                      `yaml:"ccache_maxsize,omitempty" json:"ccache_maxsize,omitempty"`
+	Registry      string                      `yaml:"registry,omitempty" json:"registry,omitempty"`
 }
 
 type ServiceExtension struct {
