@@ -1,0 +1,21 @@
+version: "1"
+project:
+  name: "test"
+acore:
+  repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
+  branch: "Playerbot"
+modules:
+  - name: "mod-a"
+    source: "catalogue"
+    version: "latest"
+    depends_on: ["mod-b"]
+  - name: "mod-b"
+    source: "catalogue"
+    version: "latest"
+    depends_on: ["mod-a"]
+client_data:
+  source: "local"
+  path: "~/wow-client"
+environment:
+  vars: {}
+compose: {}

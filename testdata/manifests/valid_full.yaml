@@ -1,0 +1,68 @@
+version: "1"
+project:
+  name: "my-full-server"
+  description: "Full featured server with multiple modules"
+acore:
+  repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
+  branch: "Playerbot"
+  commit: "a1b2c3d4e5f6"
+  shallow: false
+modules:
+  - name: "mod-playerbots"
+    source: "catalogue"
+    version: "master"
+    depends_on: []
+    config:
+      env:
+        RANDOM_BOTS: "100"
+        BOT_LEVEL_RANGE: "10-80"
+      cmake_args:
+        - "-DPLAYERBOTS=ON"
+    patches:
+      - path: "patches/playerbots-fix.patch"
+        target: "src"
+  - name: "mod-dungeon-clear"
+    source: "catalogue"
+    version: "latest"
+    depends_on: ["mod-playerbots"]
+    config:
+      env:
+        ENABLE_DUNGEON_CLEAR: "true"
+  - name: "mod-ah-bot"
+    source: "git"
+    version: "main"
+    path: "https://github.com/someuser/ah-bot"
+    depends_on: ["mod-playerbots"]
+database:
+  migrations:
+    - "sql/custom/migration_001.sql"
+    - "sql/custom/migration_002.sql"
+  seed:
+    - "sql/custom/seed_data.sql"
+client_data:
+  source: "local"
+  path: "~/wow-client"
+  extract_maps: true
+  extract_vmaps: true
+  extract_mmaps: true
+environment:
+  vars:
+    CUSTOM_VAR: "custom_value"
+  secrets:
+    - "MYSQL_ROOT_PASSWORD"
+    - "DISCORD_WEBHOOK_URL"
+compose:
+  network: "ac-network"
+  volumes:
+    "/host/logs": "/azerothcore/env/dist/logs"
+  profiles:
+    - "core"
+    - "tools"
+  services:
+    ac-worldserver:
+      environment:
+        EXTRA_DEBUG: "1"
+      ports:
+        - "8085:8085"
+      volumes:
+        - "./custom:/custom"

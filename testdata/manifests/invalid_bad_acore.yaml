@@ -1,0 +1,13 @@
+version: "1"
+project:
+  name: "test"
+acore:
+  repo: "not-a-valid-url"
+  branch: "Playerbot"
+modules: []
+client_data:
+  source: "local"
+  path: "~/wow-client"
+environment:
+  vars: {}
+compose: {}

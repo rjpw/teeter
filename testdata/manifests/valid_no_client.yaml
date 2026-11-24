@@ -1,0 +1,11 @@
+version: "1"
+project:
+  name: "ci-server"
+acore:
+  repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
+  branch: "Playerbot"
+modules: []
+# No client_data section - valid for CI environments
+environment:
+  vars: {}
+compose: {}

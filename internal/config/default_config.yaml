@@ -1,0 +1,9 @@
+# teeter global configuration
+# Copy to ~/.teeter/config.yaml and modify as needed
+
+cache_dir: "~/.teeter/cache"
+catalogue_url: "https://raw.githubusercontent.com/rjpw/teeter-registry/main/index.json"
+default_acore_repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
+default_acore_branch: "Playerbot"
+docker_compose_version: "v2"
+link_strategy: "auto"  # hardlink | symlink | auto
