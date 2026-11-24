@@ -36,6 +36,7 @@ func main() {
 	rootCmd.AddCommand(
 		commands.NewInitCmd(),
 		commands.NewValidateCmd(),
+		commands.NewBuildCtxCmd(),
 		commands.NewComposeCmd(),
 		commands.NewUpCmd(),
 		commands.NewDownCmd(),
