@@ -55,11 +55,12 @@ func NewComposeCmd() *cobra.Command {
 			cfg := config.Get()
 
 			// Apply CLI flags over manifest/config
-			if buildStrategy == "" {
-				buildStrategy = m.Compose.BuildStrategy
+			dockerImageTag := buildStrategy
+			if dockerImageTag == "" {
+				dockerImageTag = m.Compose.BuildStrategy
 			}
-			if buildStrategy == "" {
-				buildStrategy = "prebuilt"
+			if dockerImageTag == "" {
+				dockerImageTag = "master"
 			}
 
 			if buildMemory == "" {
@@ -88,13 +89,6 @@ func NewComposeCmd() *cobra.Command {
 			}
 			if ccacheMaxSize == "" {
 				ccacheMaxSize = "1G"
-			}
-
-			if registry == "" {
-				registry = m.Compose.Registry
-			}
-			if registry == "" {
-				registry = "teeter"
 			}
 
 			// Create cache
@@ -141,33 +135,10 @@ func NewComposeCmd() *cobra.Command {
 				return fmt.Errorf("write SQL files: %w", err)
 			}
 
-			// Generate Dockerfile
-			dockerfileData := compose.DockerfileData{
-				BuildJobs:     buildJobs,
-				CCacheMaxSize: ccacheMaxSize,
-				BuildMemory:   buildMemory,
-				BuildCPUs:     buildCPUs,
-				Registry:      registry,
-				ACCommit:      res.ACCommit,
-				ModulesHash:   bc.Hash,
-				FullHash:      bc.Hash,
-			}
-			dockerfile, err := compose.GenerateDockerfile(dockerfileData)
-			if err != nil {
-				return fmt.Errorf("generate Dockerfile: %w", err)
-			}
-
-			// Write Dockerfile to build context
-			if err := writeDockerfile(bc.Path, dockerfile); err != nil {
-				return fmt.Errorf("write Dockerfile: %w", err)
-			}
-
-			// Generate services
+			// Generate services (new architecture: only worldserver is custom-built)
 			svcGen := compose.ServiceGenerator{
-				BuildContext:  bc,
-				Manifest:      m,
-				Registry:      registry,
-				BuildStrategy: buildStrategy,
+				BuildContext: bc,
+				Manifest:     m,
 			}
 
 			services, err := svcGen.GenerateServices()
@@ -209,11 +180,14 @@ func NewComposeCmd() *cobra.Command {
 			}
 
 			// Print summary
-			tags := svcGen.ComputeImageTags()
-			fmt.Printf("Generating docker-compose.yml (%s)...\n", buildStrategy)
-			fmt.Printf("  Builder:     %s\n", tags.Builder)
-			fmt.Printf("  Modules:     %s\n", tags.Modules)
-			fmt.Printf("  Runtime:     %s\n", tags.Runtime)
+			worldserverImage := fmt.Sprintf("teeter/acore-worldserver:%s", bc.Hash[:8])
+			fmt.Printf("Generating docker-compose.yml (docker_image_tag=%s)...\n", dockerImageTag)
+			fmt.Printf("  Worldserver: %s (custom-built)\n", worldserverImage)
+			fmt.Printf("  Authserver:  acore/ac-wotlk-authserver:%s (upstream)\n", dockerImageTag)
+			fmt.Printf("  DB Import:   acore/ac-wotlk-db-import:%s (upstream)\n", dockerImageTag)
+			fmt.Printf("  Client Data: acore/ac-wotlk-client-data:%s (upstream)\n", dockerImageTag)
+			fmt.Printf("  Tools:       acore/ac-wotlk-tools:%s (upstream)\n", dockerImageTag)
+			fmt.Printf("  Database:    mysql:8.4\n")
 			fmt.Printf("  Services:    %d\n", len(services))
 			fmt.Printf("  Profiles:    %v\n", getProfiles(services))
 			fmt.Printf("  Volumes:     %d\n", len(volumes))
