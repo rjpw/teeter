@@ -21,7 +21,7 @@ func TestParseFile_ValidMinimal(t *testing.T) {
 	assert.Equal(t, "Playerbot", m.ACore.Branch)
 	assert.Len(t, m.Modules, 0)
 	assert.Equal(t, "local", m.ClientData.Source)
-	assert.Equal(t, "~/wow-client", m.ClientData.Path)
+	assert.Equal(t, "~/wow-client", m.ClientData.WoWClientMapsPath)
 }
 
 func TestParseFile_ValidFull(t *testing.T) {
@@ -68,7 +68,7 @@ func TestParseFile_ValidNoClient(t *testing.T) {
 	assert.Equal(t, "1", m.Version)
 	assert.Equal(t, "ci-server", m.Project.Name)
 	assert.Equal(t, "local", m.ClientData.Source) // default applied
-	assert.Empty(t, m.ClientData.Path)
+	assert.Empty(t, m.ClientData.WoWClientMapsPath)
 }
 
 func TestParseFile_NotFound(t *testing.T) {
@@ -103,7 +103,7 @@ modules:
   - name: "mod-a"
 client_data:
   source: "local"
-  path: "/path"
+  wow_client_maps_path: "/path"
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: "/path"
+  wow_client_maps_path: "/path"
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err) // Parser doesn't validate version

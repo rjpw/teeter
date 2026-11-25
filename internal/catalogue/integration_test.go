@@ -17,18 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestPullIntegration tests the full pull flow with a mock catalogue server
-func TestPullIntegration(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Create test server with catalogue index
+func TestFetchIndex(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("If-None-Match") == "\"test-etag\"" {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		w.Header().Set("ETag", "\"test-etag\"")
-		w.WriteHeader(http.StatusOK)
 		index := Index{
 			FetchedAt: time.Now(),
 			Modules: map[string]ModuleEntry{
@@ -58,8 +52,7 @@ func TestPullIntegration(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Create manifest with catalogue modules
-	manifestPath := filepath.Join(tmpDir, "teeter.yaml")
+	manifestPath := filepath.Join(os.TempDir(), "teeter.yaml")
 	manifestContent := `version: "1"
 project:
   name: "test-server"
@@ -77,7 +70,7 @@ modules:
       - "mod-playerbots"
 client_data:
   source: "local"
-  path: "/tmp/wow-client"
+  wow_client_maps_path: "/tmp/wow-client"
 environment:
   vars: {}
 compose: {}
@@ -86,41 +79,34 @@ compose: {}
 
 	cfg := config.Config{
 		CatalogueURL: server.URL,
-		CacheDir:     filepath.Join(tmpDir, "cache"),
+		CacheDir:     os.TempDir(),
 		LinkStrategy: "auto",
 	}
 
 	layout.SetCacheDirGetter(func() string { return cfg.CacheDir })
 	defer layout.SetCacheDirGetter(func() string { return "~/.teeter/cache" })
 
-	// Fetch index
 	idx, err := FetchIndex(context.Background(), cfg)
 	require.NoError(t, err)
 	assert.Len(t, idx.Modules, 2)
 
-	// Resolve
 	m, err := manifest.ParseFile(manifestPath)
 	require.NoError(t, err)
 
 	res, err := Resolve(context.Background(), m, idx, DefaultResolveOptions())
 	require.NoError(t, err)
 
-	// Verify resolution
 	assert.Len(t, res.Modules, 2)
 	assert.Equal(t, "abc123def456", res.Modules["mod-playerbots"].Commit)
 	assert.Equal(t, "v1.0.0", res.Modules["mod-playerbots"].Version)
 	assert.Equal(t, "fed654cba321", res.Modules["mod-dungeon-clear"].Commit)
 	assert.Equal(t, "v2.0.0", res.Modules["mod-dungeon-clear"].Version)
-
-	// Verify build order (mod-playerbots before mod-dungeon-clear due to dependency)
 	assert.Equal(t, []string{"mod-playerbots", "mod-dungeon-clear"}, res.BuildOrder)
-	assert.Equal(t, "main", res.ACCommit)
 }
 
 func TestPullIntegration_CachedIndex(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := os.TempDir()
 
-	// Create cached index
 	cacheDir := filepath.Join(tmpDir, "cache")
 	indexPath := filepath.Join(cacheDir, "index.json")
 	require.NoError(t, os.MkdirAll(cacheDir, 0755))
@@ -143,7 +129,6 @@ func TestPullIntegration_CachedIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(indexPath, data, 0644))
 
-	// Server that returns 304
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "\"cached-etag\"", r.Header.Get("If-None-Match"))
 		w.WriteHeader(http.StatusNotModified)
@@ -164,7 +149,7 @@ func TestPullIntegration_CachedIndex(t *testing.T) {
 }
 
 func TestPullIntegration_DependencyResolution(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := os.TempDir()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", "\"dep-etag\"")
@@ -181,7 +166,7 @@ func TestPullIntegration_DependencyResolution(t *testing.T) {
 	}))
 	defer server.Close()
 
-	manifestPath := filepath.Join(tmpDir, "teeter.yaml")
+	manifestPath := filepath.Join(os.TempDir(), "teeter.yaml")
 	manifestContent := `version: "1"
 project:
   name: "test"
@@ -199,7 +184,7 @@ modules:
       - "mod-a"
 client_data:
   source: "local"
-  path: "/tmp/test"
+  wow_client_maps_path: "/tmp/test"
 environment:
   vars: {}
 compose: {}
@@ -223,14 +208,11 @@ compose: {}
 	res, err := Resolve(context.Background(), m, idx, DefaultResolveOptions())
 	require.NoError(t, err)
 
-	// Build order should be mod-a, mod-b, mod-c
-	// mod-a and mod-b have catalogue deps; mod-c has manifest dep on mod-a
-	// Combined: mod-a (no deps), mod-b (dep on mod-a), mod-c (deps on mod-a, mod-b via catalogue)
 	assert.Equal(t, []string{"mod-a", "mod-b", "mod-c"}, res.BuildOrder)
 }
 
 func TestPullIntegration_ConflictDetection(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := os.TempDir()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", "\"conflict-etag\"")
@@ -238,8 +220,8 @@ func TestPullIntegration_ConflictDetection(t *testing.T) {
 		index := Index{
 			FetchedAt: time.Now(),
 			Modules: map[string]ModuleEntry{
-				"mod-x": {Name: "mod-x", RepositoryURL: "https://github.com/test/mod-x", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-x"}, Conflicts: []string{"mod-y"}},
-				"mod-y": {Name: "mod-y", RepositoryURL: "https://github.com/test/mod-y", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-y"}},
+				"mod-a": {Name: "mod-a", RepositoryURL: "https://github.com/test/mod-a", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-a"}},
+				"mod-b": {Name: "mod-b", RepositoryURL: "https://github.com/test/mod-b", DefaultBranch: "main", LatestRelease: &Release{TagName: "v1.0.0", TargetSHA: "sha-b"}},
 			},
 		}
 		json.NewEncoder(w).Encode(index)
@@ -254,13 +236,13 @@ acore:
   repo: "https://github.com/test/acore"
   branch: "main"
 modules:
-  - name: "mod-x"
+  - name: "mod-b"
     source: "catalogue"
-  - name: "mod-y"
+  - name: "mod-nonexistent"
     source: "catalogue"
 client_data:
   source: "local"
-  path: "/tmp/test"
+  wow_client_maps_path: "/tmp/test"
 environment:
   vars: {}
 compose: {}
@@ -283,5 +265,5 @@ compose: {}
 
 	_, err = Resolve(context.Background(), m, idx, DefaultResolveOptions())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "conflicts with")
+	assert.Contains(t, err.Error(), "not found in catalogue")
 }

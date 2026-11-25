@@ -49,12 +49,14 @@ type DatabaseSpec struct {
 }
 
 type ClientDataSpec struct {
-	Source       string `yaml:"source" json:"source"`
-	Path         string `yaml:"path,omitempty" json:"path,omitempty"`
-	URL          string `yaml:"url,omitempty" json:"url,omitempty"`
-	ExtractMaps  bool   `yaml:"extract_maps,omitempty" json:"extract_maps,omitempty"`
-	ExtractVmaps bool   `yaml:"extract_vmaps,omitempty" json:"extract_vmaps,omitempty"`
-	ExtractMmaps bool   `yaml:"extract_mmaps,omitempty" json:"extract_mmaps,omitempty"`
+	Source            string `yaml:"source" json:"source"` // "local" | "static"
+	WoWClientMapsPath string `yaml:"wow_client_maps_path,omitempty" json:"wow_client_maps_path,omitempty"`
+	URL               string `yaml:"url,omitempty" json:"url,omitempty"`
+	Version           string `yaml:"version,omitempty" json:"version,omitempty"` // e.g., "v20.0"
+	AutoDownload      bool   `yaml:"auto_download,omitempty" json:"auto_download,omitempty"`
+	ExtractMaps       bool   `yaml:"extract_maps,omitempty" json:"extract_maps,omitempty"`
+	ExtractVmaps      bool   `yaml:"extract_vmaps,omitempty" json:"extract_vmaps,omitempty"`
+	ExtractMmaps      bool   `yaml:"extract_mmaps,omitempty" json:"extract_mmaps,omitempty"`
 }
 
 type EnvSpec struct {

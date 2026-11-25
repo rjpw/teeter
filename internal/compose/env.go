@@ -105,9 +105,9 @@ func GenerateEnvFiles(bc *buildctx.BuildContext, m *manifest.Manifest) (EnvFiles
 	env.WriteString("\n")
 
 	// Client data path (expanded)
-	if m != nil && m.ClientData.Path != "" {
+	if m != nil && m.ClientData.WoWClientMapsPath != "" {
 		env.WriteString("# Client Data\n")
-		env.WriteString(fmt.Sprintf("WOW_CLIENT_PATH=%s\n", m.ClientData.Path))
+		env.WriteString(fmt.Sprintf("WOW_CLIENT_PATH=%s\n", m.ClientData.WoWClientMapsPath))
 		env.WriteString("\n")
 	}
 

@@ -13,7 +13,7 @@ modules:
     version: "master"
 client_data:
   source: "local"
-  path: "/tmp/wow-client"
+  wow_client_maps_path: "/tmp/wow-client"
   extract_maps: false
   extract_vmaps: false
   extract_mmaps: false

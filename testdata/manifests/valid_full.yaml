@@ -41,7 +41,7 @@ database:
     - "sql/custom/seed_data.sql"
 client_data:
   source: "local"
-  path: "~/wow-client"
+  wow_client_maps_path: "~/wow-client"
   extract_maps: true
   extract_vmaps: true
   extract_mmaps: true

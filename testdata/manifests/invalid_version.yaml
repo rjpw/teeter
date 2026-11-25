@@ -7,7 +7,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: "~/wow-client"
+  wow_client_maps_path: "~/wow-client"
 environment:
   vars: {}
 compose: {}

@@ -19,8 +19,8 @@ func TestResolve_EmptyModules(t *testing.T) {
 		},
 		Modules: []manifest.ModuleSpec{},
 		ClientData: manifest.ClientDataSpec{
-			Source: "local",
-			Path:   "/tmp/test",
+			Source:            "local",
+			WoWClientMapsPath: "/tmp/test",
 		},
 	}
 
@@ -48,8 +48,8 @@ func TestResolve_LocalModule(t *testing.T) {
 			{Name: "mod-local", Source: "local", Path: "/path/to/mod"},
 		},
 		ClientData: manifest.ClientDataSpec{
-			Source: "local",
-			Path:   "/tmp/test",
+			Source:            "local",
+			WoWClientMapsPath: "/tmp/test",
 		},
 	}
 
@@ -79,8 +79,8 @@ func TestResolve_CatalogueModule(t *testing.T) {
 			{Name: "mod-cat", Source: "catalogue", Version: "v1.0.0"},
 		},
 		ClientData: manifest.ClientDataSpec{
-			Source: "local",
-			Path:   "/tmp/test",
+			Source:            "local",
+			WoWClientMapsPath: "/tmp/test",
 		},
 	}
 
@@ -123,8 +123,8 @@ func TestResolve_DependencyGraph(t *testing.T) {
 			{Name: "mod-c", Source: "local", Path: "/c"},
 		},
 		ClientData: manifest.ClientDataSpec{
-			Source: "local",
-			Path:   "/tmp/test",
+			Source:            "local",
+			WoWClientMapsPath: "/tmp/test",
 		},
 	}
 
@@ -149,8 +149,8 @@ func TestResolve_CycleDetection(t *testing.T) {
 			{Name: "mod-b", Source: "local", Path: "/b", DependsOn: []string{"mod-a"}},
 		},
 		ClientData: manifest.ClientDataSpec{
-			Source: "local",
-			Path:   "/tmp/test",
+			Source:            "local",
+			WoWClientMapsPath: "/tmp/test",
 		},
 	}
 
@@ -176,8 +176,8 @@ func TestResolve_ConflictDetection(t *testing.T) {
 			{Name: "mod-b", Source: "catalogue"},
 		},
 		ClientData: manifest.ClientDataSpec{
-			Source: "local",
-			Path:   "/tmp/test",
+			Source:            "local",
+			WoWClientMapsPath: "/tmp/test",
 		},
 	}
 

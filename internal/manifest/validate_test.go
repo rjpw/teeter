@@ -21,7 +21,7 @@ func TestValidate_ValidMinimal(t *testing.T) {
 	require.NoError(t, os.MkdirAll(wowClient, 0755))
 
 	// Update path to point to temp dir
-	m.ClientData.Path = wowClient
+	m.ClientData.WoWClientMapsPath = wowClient
 
 	err = Validate(m, tmpDir)
 	assert.NoError(t, err)
@@ -47,7 +47,7 @@ func TestValidate_ValidFull(t *testing.T) {
 	require.NoError(t, os.MkdirAll(hostLogs, 0755))
 
 	// Update paths
-	m.ClientData.Path = wowClient
+	m.ClientData.WoWClientMapsPath = wowClient
 	m.Modules[0].Patches[0].Path = filepath.Join(patchDir, "playerbots-fix.patch")
 	m.Database.Migrations[0] = filepath.Join(sqlDir, "migration_001.sql")
 	m.Database.Migrations[1] = filepath.Join(sqlDir, "migration_002.sql")
@@ -132,7 +132,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: "/path"
+  wow_client_maps_path: "/path"
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -154,7 +154,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: "/path"
+  wow_client_maps_path: "/path"
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: "/path"
+  wow_client_maps_path: "/path"
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -199,7 +199,7 @@ modules:
     source: "invalid"
 client_data:
   source: "local"
-  path: "/path"
+  wow_client_maps_path: "/path"
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -221,7 +221,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: ""
+  wow_client_maps_path: ""
   extract_maps: true
 `)
 	m, err := ParseBytes(yamlData)
@@ -229,7 +229,7 @@ client_data:
 
 	err = Validate(m, ".")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "client_data.path")
+	assert.Contains(t, err.Error(), "client_data.wow_client_maps_path")
 	assert.Contains(t, err.Error(), "required when source is local")
 }
 
@@ -244,7 +244,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: "/nonexistent/path"
+  wow_client_maps_path: "/nonexistent/path"
   extract_maps: true
 `)
 	m, err := ParseBytes(yamlData)
@@ -267,7 +267,7 @@ acore:
 modules: []
 client_data:
   source: "local"
-  path: ""
+  wow_client_maps_path: ""
   extract_maps: false
   extract_vmaps: false
   extract_mmaps: false
@@ -277,6 +277,48 @@ client_data:
 
 	err = Validate(m, ".")
 	require.NoError(t, err)
+}
+
+func TestValidate_ClientDataStaticValid(t *testing.T) {
+	yamlData := []byte(`
+version: "1"
+project:
+  name: "test"
+acore:
+  repo: "https://github.com/test/repo"
+  branch: "main"
+modules: []
+client_data:
+  source: "static"
+  version: "v20.0"
+`)
+	m, err := ParseBytes(yamlData)
+	require.NoError(t, err)
+
+	err = Validate(m, ".")
+	require.NoError(t, err)
+}
+
+func TestValidate_ClientDataStaticInvalidVersion(t *testing.T) {
+	yamlData := []byte(`
+version: "1"
+project:
+  name: "test"
+acore:
+  repo: "https://github.com/test/repo"
+  branch: "main"
+modules: []
+client_data:
+  source: "static"
+  version: "20.0"
+`)
+	m, err := ParseBytes(yamlData)
+	require.NoError(t, err)
+
+	err = Validate(m, ".")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client_data.version")
+	assert.Contains(t, err.Error(), "must start with 'v'")
 }
 
 func TestValidate_InvalidClientDataSource(t *testing.T) {

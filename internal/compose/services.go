@@ -287,7 +287,7 @@ func (g *ServiceGenerator) GenerateVolumes() map[string]Volume {
 	}
 
 	// Add client data volume if local
-	if g.Manifest != nil && g.Manifest.ClientData.Source == "local" && g.Manifest.ClientData.Path != "" {
+	if g.Manifest != nil && g.Manifest.ClientData.Source == "local" && g.Manifest.ClientData.WoWClientMapsPath != "" {
 		volumes["client-data"] = Volume{Driver: "local"}
 	}
 
