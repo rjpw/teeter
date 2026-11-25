@@ -96,6 +96,24 @@ func GetComposeFile(bc *buildctx.BuildContext) string {
 	return filepath.Join(bc.Path, "docker-compose.yml")
 }
 
+// FindManifest locates the manifest file in the working directory
+func FindManifest(workDir string) string {
+	candidates := []string{
+		"teeter.yaml",
+		".teeter/manifest.yaml",
+	}
+	for _, c := range candidates {
+		path := c
+		if workDir != "" {
+			path = filepath.Join(workDir, c)
+		}
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return "teeter.yaml"
+}
+
 // newDockerCommand creates a docker command with proper environment
 func newDockerCommand(ctx context.Context, dir string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "docker", args...)
