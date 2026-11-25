@@ -34,7 +34,7 @@ Verify installation:
 teeter --help
 ```
 
-## Quick Start (What Works Now)
+## Quick Start
 
 ### 1. Initialize a Project
 
@@ -63,15 +63,15 @@ modules:
     source: "catalogue"
     version: "master"
 client_data:
-  source: "local"
-  path: "~/wow-client"  # Path to your WoW 3.3.5a client
-  extract_maps: true
-  extract_vmaps: true
-  extract_mmaps: true
+  source: "static"
+  version: "v20.0"
 environment:
   vars: {}
 compose: {}
 ```
+
+> **Client data**: Uses pre-extracted data from `wowgaming/client-data` releases (no WoW client needed).
+> Set `source: "local"` + `path: "~/wow-client"` if you want to extract from a local WoW 3.3.5a client.
 
 ### 3. Fetch the Static Catalogue (No Auth Required)
 
@@ -83,14 +83,21 @@ teeter catalogue refresh
 > **No GitHub token needed.** Uses the static catalogue from `azerothcore.github.io`.
 > Use `teeter catalogue refresh --api` (requires `GITHUB_TOKEN`) for live GitHub data.
 
-### 4. Resolve and Cache Dependencies
+### 4. Download Client Data (Pre-extracted Maps/VMaps/MMaps)
+
+```sh
+teeter client-data pull
+# Downloads Data.zip from wowgaming/client-data v20.0, extracts to Docker volume
+```
+
+### 5. Resolve and Cache Dependencies
 
 ```sh
 teeter pull --dry-run   # Show resolution plan
 teeter pull             # Fetch AC source + modules to cache (~/.teeter/cache/)
 ```
 
-### 5. Assemble Build Context
+### 6. Assemble Build Context
 
 ```sh
 teeter buildctx
@@ -98,49 +105,56 @@ teeter buildctx
 # Output: .teeter/buildctx/<hash>/
 ```
 
-### 6. Generate Docker Compose
+### 7. Generate Docker Compose
 
 ```sh
 teeter compose --dry-run   # Preview
 teeter compose             # Write .teeter/buildctx/<hash>/docker-compose.yml
 ```
 
-Uses **layered build strategy** by default (`prebuilt` = no local compilation):
-- `teeter/acore-builder:<ac-commit>` — AC build environment
-- `teeter/acore-modules:<modules-hash>` — Compiled modules
-- `teeter/acore-runtime:<full-hash>` — Runtime image (config + SQL)
+Uses **per-service images** (default `prebuilt` = no local compilation):
+- `ac-database`: `mysql:8.4`
+- `ac-db-import`: `acore/ac-wotlk-db-import:master`
+- `ac-authserver`: `acore/ac-wotlk-authserver:master`
+- `ac-worldserver`: `teeter/acore-worldserver:<hash>` (custom-built from build context)
+- `ac-client-data-init`: `acore/ac-wotlk-client-data:master`
+- `ac-tools`: `acore/ac-wotlk-tools:master`
 
-### 7. Check System Readiness
+### 8. Check System Readiness
 
 ```sh
 teeter doctor
 # Checks: RAM, swap, CPU, disk, Docker daemon, buildx
 ```
 
-### 8. Start the Server (Phase 5 - Not Yet Implemented)
+### 9. Start the Server
 
 ```sh
-# Coming in Phase 5:
-teeter up          # Start all services (db → db-import → client-data → auth → world)
-teeter logs -f ac-worldserver
-teeter exec ac-worldserver bash
+teeter up          # Full orchestration: lock → pull → buildctx → compose → up → health wait
+teeter status      # Formatted health table
+teeter logs -f ac-worldserver  # Use docker compose logs directly
 teeter down --volumes
 ```
 
-## Current Capabilities (Phases 0-4 Complete)
+## Current Capabilities (Phases 0-5 Complete, Phase 6 Started)
 
 | Command | Status |
 |---------|--------|
 | `teeter init` | ✅ Creates manifest |
 | `teeter validate` | ✅ Schema + dependency validation |
-| `teeter list` | ✅ Lists catalogue modules |
 | `teeter catalogue refresh` | ✅ Static (default) / `--api` for GitHub |
 | `teeter pull` | ✅ Resolves + caches AC + modules |
 | `teeter buildctx` | ✅ Links sources, applies patches, assembles SQL |
-| `teeter compose` | ✅ Generates layered docker-compose.yml |
-| `teeter build` | ✅ Builds specific Docker layers |
+| `teeter compose` | ✅ Generates docker-compose.yml (per-service images) |
+| `teeter build` | ✅ Builds worldserver image |
 | `teeter doctor` | ✅ System resource validation |
-| `teeter up/down/logs/exec` | 🚧 Phase 5 |
+| `teeter up` | ✅ Full orchestration + health wait |
+| `teeter down` | ✅ Graceful shutdown + lock release |
+| `teeter status` | ✅ Formatted health table |
+| `teeter client-data pull` | ✅ Download pre-extracted client data |
+| `teeter cache` / `teeter list` | 🚧 Phase 7 |
+| `teeter backup` / `teeter restore` | 🚧 Phase 8 |
+| `teeter dev` | 🚧 Phase 9 |
 
 ## Manifest Reference (Minimal)
 
@@ -164,11 +178,13 @@ modules:
     source: "local"
     path: "./my-module"
 client_data:
-  source: "local"
-  path: "~/wow-client"
-  extract_maps: true
-  extract_vmaps: true
-  extract_mmaps: true
+  source: "static"
+  version: "v20.0"
+  # source: "local"        # Alternative: extract from local WoW client
+  # path: "~/wow-client"
+  # extract_maps: true
+  # extract_vmaps: true
+  # extract_mmaps: true
 environment:
   vars:
     CUSTOM_VAR: "value"
@@ -183,17 +199,24 @@ compose:
   ccache_maxsize: "1G"
 ```
 
-## Layered Build Strategy
+## Per-Service Docker Images
 
-```
-teeter/acore-runtime:<full-hash>    ← Config/SQL changes (fast, copy-only)
-teeter/acore-modules:<modules-hash>  ← Module changes (ccache incremental)
-teeter/acore-builder:<ac-commit>     ← AC version bump (rare)
-ubuntu:22.04                          ← Base (never rebuilds)
-```
+| Service | Image | Source |
+|---------|-------|--------|
+| `ac-database` | `mysql:8.4` | External |
+| `ac-db-import` | `acore/ac-wotlk-db-import:master` | Upstream AC |
+| `ac-authserver` | `acore/ac-wotlk-authserver:master` | Upstream AC |
+| `ac-worldserver` | `teeter/acore-worldserver:<hash>` | **Custom (build context)** |
+| `ac-client-data-init` | `acore/ac-wotlk-client-data:master` | Upstream AC |
+| `ac-tools` | `acore/ac-wotlk-tools:master` | Upstream AC |
 
-**Default: `prebuilt`** — no local compilation. Images pulled from registry.
-Use `--build-strategy local` (or `build_strategy: local` in manifest) to build locally.
+**Only worldserver is custom-built** — content-addressable hash from AC commit + modules + patches.
+All other services use stable upstream AC images.
+
+**Build strategies** (for worldserver only):
+- `prebuilt` (default) — pull from registry, no local build
+- `auto` — build only dirty layers (cache-aware)
+- `local` — force rebuild locally
 
 ## Configuration
 
