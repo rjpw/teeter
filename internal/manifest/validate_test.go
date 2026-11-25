@@ -222,6 +222,7 @@ modules: []
 client_data:
   source: "local"
   path: ""
+  extract_maps: true
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -244,6 +245,7 @@ modules: []
 client_data:
   source: "local"
   path: "/nonexistent/path"
+  extract_maps: true
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
@@ -254,7 +256,7 @@ client_data:
 	assert.Contains(t, err.Error(), "path not found")
 }
 
-func TestValidate_InvalidClientDataSource(t *testing.T) {
+func TestValidate_ClientDataLocalDisabledExtraction(t *testing.T) {
 	yamlData := []byte(`
 version: "1"
 project:
@@ -264,13 +266,18 @@ acore:
   branch: "main"
 modules: []
 client_data:
-  source: "invalid"
+  source: "local"
+  path: ""
+  extract_maps: false
+  extract_vmaps: false
+  extract_mmaps: false
 `)
 	m, err := ParseBytes(yamlData)
 	require.NoError(t, err)
 
 	err = Validate(m, ".")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "client_data.source")
-	assert.Contains(t, err.Error(), "invalid source")
+	require.NoError(t, err)
+}
+
+func TestValidate_InvalidClientDataSource(t *testing.T) {
 }

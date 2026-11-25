@@ -180,7 +180,7 @@ func Validate(m *Manifest, manifestDir string) error {
 		}
 	}
 
-	// Rule 8: ClientData.Source in local, url; if local, Path required and exists
+	// Rule 8: ClientData.Source in local, url; if local and extraction enabled, Path required and exists
 	validClientSources := map[string]bool{"local": true, "url": true}
 	if !validClientSources[m.ClientData.Source] {
 		errs = append(errs, &ValidationError{
@@ -189,23 +189,27 @@ func Validate(m *Manifest, manifestDir string) error {
 			Message: fmt.Sprintf("invalid source %q, allowed: local, url", m.ClientData.Source),
 		})
 	} else if m.ClientData.Source == "local" {
-		if m.ClientData.Path == "" {
-			errs = append(errs, &ValidationError{
-				Code:    ErrCodeInvalid,
-				Field:   "client_data.path",
-				Message: "required when source is local",
-			})
-		} else {
-			path := expandHome(m.ClientData.Path)
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(manifestDir, path)
-			}
-			if _, err := os.Stat(path); err != nil {
+		// Only require path if extraction is actually enabled
+		needsExtraction := m.ClientData.ExtractMaps || m.ClientData.ExtractVmaps || m.ClientData.ExtractMmaps
+		if needsExtraction {
+			if m.ClientData.Path == "" {
 				errs = append(errs, &ValidationError{
-					Code:    ErrCodeIO,
+					Code:    ErrCodeInvalid,
 					Field:   "client_data.path",
-					Message: fmt.Sprintf("path not found: %s", path),
+					Message: "required when source is local and extraction is enabled",
 				})
+			} else {
+				path := expandHome(m.ClientData.Path)
+				if !filepath.IsAbs(path) {
+					path = filepath.Join(manifestDir, path)
+				}
+				if _, err := os.Stat(path); err != nil {
+					errs = append(errs, &ValidationError{
+						Code:    ErrCodeIO,
+						Field:   "client_data.path",
+						Message: fmt.Sprintf("path not found: %s", path),
+					})
+				}
 			}
 		}
 	}
