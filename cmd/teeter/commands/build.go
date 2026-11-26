@@ -106,6 +106,13 @@ func NewBuildCmd() *cobra.Command {
 
 			// Filter to only worldserver
 			worldserverSvc := services["ac-worldserver"]
+			// Remove depends_on and profiles for build-only compose
+			worldserverSvc.DependsOn = nil
+			worldserverSvc.Profiles = nil
+			// Build context should be the azerothcore directory (where deps/conf/src are)
+			// Dockerfile path relative to that context
+			worldserverSvc.Build.Context = filepath.Join(bc.Path, "azerothcore")
+			worldserverSvc.Build.Dockerfile = "apps/docker/Dockerfile"
 			composeConfig := compose.ComposeConfig{
 				Version:  "3.8",
 				Services: map[string]compose.Service{"ac-worldserver": worldserverSvc},

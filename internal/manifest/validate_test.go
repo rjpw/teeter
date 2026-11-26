@@ -210,7 +210,7 @@ client_data:
 	assert.Contains(t, err.Error(), "invalid source")
 }
 
-func TestValidate_ClientDataLocalMissingPath(t *testing.T) {
+func TestValidate_ClientDataInvalidSource(t *testing.T) {
 	yamlData := []byte(`
 version: "1"
 project:
@@ -229,54 +229,8 @@ client_data:
 
 	err = Validate(m, ".")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "client_data.wow_client_maps_path")
-	assert.Contains(t, err.Error(), "required when source is local")
-}
-
-func TestValidate_ClientDataLocalPathNotFound(t *testing.T) {
-	yamlData := []byte(`
-version: "1"
-project:
-  name: "test"
-acore:
-  repo: "https://github.com/test/repo"
-  branch: "main"
-modules: []
-client_data:
-  source: "local"
-  wow_client_maps_path: "/nonexistent/path"
-  extract_maps: true
-`)
-	m, err := ParseBytes(yamlData)
-	require.NoError(t, err)
-
-	err = Validate(m, ".")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "MANIFEST_IO")
-	assert.Contains(t, err.Error(), "path not found")
-}
-
-func TestValidate_ClientDataLocalDisabledExtraction(t *testing.T) {
-	yamlData := []byte(`
-version: "1"
-project:
-  name: "test"
-acore:
-  repo: "https://github.com/test/repo"
-  branch: "main"
-modules: []
-client_data:
-  source: "local"
-  wow_client_maps_path: ""
-  extract_maps: false
-  extract_vmaps: false
-  extract_mmaps: false
-`)
-	m, err := ParseBytes(yamlData)
-	require.NoError(t, err)
-
-	err = Validate(m, ".")
-	require.NoError(t, err)
+	assert.Contains(t, err.Error(), "client_data.source")
+	assert.Contains(t, err.Error(), "only 'static' is supported")
 }
 
 func TestValidate_ClientDataStaticValid(t *testing.T) {
@@ -322,4 +276,23 @@ client_data:
 }
 
 func TestValidate_InvalidClientDataSource(t *testing.T) {
+	yamlData := []byte(`
+version: "1"
+project:
+  name: "test"
+acore:
+  repo: "https://github.com/test/repo"
+  branch: "main"
+modules: []
+client_data:
+  source: "url"
+  wow_client_maps_path: ""
+`)
+	m, err := ParseBytes(yamlData)
+	require.NoError(t, err)
+
+	err = Validate(m, ".")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client_data.source")
+	assert.Contains(t, err.Error(), "only 'static' is supported")
 }

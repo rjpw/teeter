@@ -188,7 +188,20 @@ func linkACSource(bc *BuildContext, c cache.Cache) (string, error) {
 	targetPath := filepath.Join(bc.Path, "azerothcore")
 
 	// Use the cache's link strategy
-	return targetPath, linkDir(worktreePath, targetPath, c.LinkStrategy())
+	if err := linkDir(worktreePath, targetPath, c.LinkStrategy()); err != nil {
+		return "", err
+	}
+
+	// Copy .git directory from bare repo (Dockerfile needs it for build-time git ops)
+	bareGitPath := filepath.Join(acCachePath, ".git")
+	targetGitPath := filepath.Join(targetPath, ".git")
+	// Remove existing .git (could be file from worktree link)
+	_ = os.RemoveAll(targetGitPath)
+	if err := copyDir(bareGitPath, targetGitPath); err != nil {
+		return "", fmt.Errorf("copy .git directory: %w", err)
+	}
+
+	return targetPath, nil
 }
 
 // linkDir links a directory using the specified strategy.
@@ -254,6 +267,10 @@ func linkDirHardlink(src, dst string) error {
 
 // copyDir recursively copies a directory.
 func copyDir(src, dst string) error {
+	// Ensure destination root exists
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

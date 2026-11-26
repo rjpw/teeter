@@ -4,20 +4,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/rjpw/teeter/internal/buildctx"
 	"github.com/rjpw/teeter/internal/compose"
 	"gopkg.in/yaml.v3"
 )
 
 func writeEnvFiles(buildCtxPath string, ef compose.EnvFiles) error {
-	envACPath := filepath.Join(buildCtxPath, "env.ac")
-	if err := os.WriteFile(envACPath, []byte(ef.EnvAC), 0644); err != nil {
-		return err
+	// Use the new WriteEnvFiles which also generates dbimport.conf, authserver.conf, worldserver.conf
+	bc := &buildctx.BuildContext{
+		Path: buildCtxPath,
 	}
-	envPath := filepath.Join(buildCtxPath, ".env")
-	if err := os.WriteFile(envPath, []byte(ef.Env), 0644); err != nil {
-		return err
-	}
-	return nil
+	return compose.WriteEnvFiles(bc, ef)
 }
 
 func writeSQLFiles(buildCtxPath string, sf compose.SQLFiles) error {

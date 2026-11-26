@@ -15,6 +15,7 @@ import (
 	"github.com/rjpw/teeter/internal/config"
 	"github.com/rjpw/teeter/internal/manifest"
 	"github.com/rjpw/teeter/internal/project"
+	"github.com/rjpw/teeter/internal/runtime"
 	"github.com/spf13/cobra"
 )
 
@@ -133,7 +134,6 @@ func NewUpCmd() *cobra.Command {
 
 			// Create compose config
 			composeConfig := compose.ComposeConfig{
-				Version:  "3.8",
 				Services: services,
 				Networks: networks,
 				Volumes:  volumes,
@@ -148,6 +148,19 @@ func NewUpCmd() *cobra.Command {
 			if err := os.WriteFile(composeFile, yamlData, 0644); err != nil {
 				return fmt.Errorf("write compose file: %w", err)
 			}
+
+			// Set up thin runtime: create symlink farm pointing to this build context
+			rt := &runtime.ThinRuntime{WorkDir: workDir}
+			if err := rt.Switch(bc.Hash); err != nil {
+				return fmt.Errorf("switch runtime to build context: %w", err)
+			}
+
+			// Use thin runtime's compose file for all docker operations
+			runtimeComposeFile, err := rt.GetComposeFile()
+			if err != nil {
+				return fmt.Errorf("get runtime compose file: %w", err)
+			}
+			composeFile = runtimeComposeFile
 
 			// Build images if requested
 			if build {
@@ -180,10 +193,10 @@ func NewUpCmd() *cobra.Command {
 			fmt.Println("Starting AzerothCore server...")
 			upArgs := []string{"compose", "-f", composeFile}
 			upArgs = append(upArgs, GetProfileArgs(m)...)
+			upArgs = append(upArgs, "up")
 			if detach {
 				upArgs = append(upArgs, "-d")
 			}
-
 			upCmd := newDockerCommand(ctx, bc.Path, upArgs...)
 			upCmd.Stdout = os.Stdout
 			upCmd.Stderr = os.Stderr
@@ -237,10 +250,10 @@ func waitForHealth(ctx context.Context, projectDir, composeFile string, timeout 
 			return checkServiceCompleted(ctx, projectDir, composeFile, profileArgs, "ac-client-data-init")
 		}},
 		{"ac-authserver", func() error {
-			return checkServiceHealth(ctx, projectDir, composeFile, profileArgs, "ac-authserver")
+			return checkServiceRunning(ctx, projectDir, composeFile, profileArgs, "ac-authserver")
 		}},
 		{"ac-worldserver", func() error {
-			return checkServiceHealth(ctx, projectDir, composeFile, profileArgs, "ac-worldserver")
+			return checkServiceRunning(ctx, projectDir, composeFile, profileArgs, "ac-worldserver")
 		}},
 	}
 
@@ -267,6 +280,29 @@ func waitForHealth(ctx context.Context, projectDir, composeFile string, timeout 
 	return nil
 }
 
+func checkServiceRunning(ctx context.Context, projectDir, composeFile string, profileArgs []string, service string) error {
+	args := []string{"compose", "-f", composeFile}
+	args = append(args, profileArgs...)
+	args = append(args, "ps", "--format", "json", service)
+	cmd := newDockerCommand(ctx, projectDir, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" || outputStr == "[]" {
+		return fmt.Errorf("service not found")
+	}
+
+	// docker compose ps --format json returns an array of objects
+	// Check if any object has State=running
+	if strings.Contains(outputStr, "\"State\":\"running\"") {
+		return nil
+	}
+	return fmt.Errorf("service not running: %s", outputStr)
+}
+
 func GetProfileArgsFromComposeFile(composeFile string) []string {
 	// Read the compose file to get profiles
 	// For now, use a default
@@ -283,18 +319,22 @@ func checkServiceHealth(ctx context.Context, projectDir, composeFile string, pro
 		return err
 	}
 
-	// Parse JSON output to check health status
-	// Simplified: just check if container is running
-	outputStr := string(output)
-	if strings.Contains(outputStr, "\"State\":\"running\"") || strings.Contains(outputStr, "\"Status\":\"running\"") {
-		// Check health
-		healthArgs := []string{"compose", "-f", composeFile}
-		healthArgs = append(healthArgs, profileArgs...)
-		healthArgs = append(healthArgs, "exec", "-T", service, "sh", "-c", "exit 0")
-		healthCmd := newDockerCommand(ctx, projectDir, healthArgs...)
-		return healthCmd.Run()
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" || outputStr == "[]" {
+		return fmt.Errorf("service not found")
 	}
-	return fmt.Errorf("service not running")
+
+	// docker compose ps --format json returns an array of objects
+	if !strings.Contains(outputStr, "\"State\":\"running\"") {
+		return fmt.Errorf("service not running: %s", outputStr)
+	}
+
+	// Check health via docker exec (for services with healthcheck)
+	healthArgs := []string{"compose", "-f", composeFile}
+	healthArgs = append(healthArgs, profileArgs...)
+	healthArgs = append(healthArgs, "exec", "-T", service, "sh", "-c", "exit 0")
+	healthCmd := newDockerCommand(ctx, projectDir, healthArgs...)
+	return healthCmd.Run()
 }
 
 func checkServiceCompleted(ctx context.Context, projectDir, composeFile string, profileArgs []string, service string) error {
@@ -307,15 +347,21 @@ func checkServiceCompleted(ctx context.Context, projectDir, composeFile string, 
 		return err
 	}
 
-	outputStr := string(output)
-	if strings.Contains(outputStr, "\"State\":\"exited\"") || strings.Contains(outputStr, "\"Status\":\"exited\"") {
-		// Check exit code
-		if strings.Contains(outputStr, "\"ExitCode\":0") {
-			return nil
-		}
-		return fmt.Errorf("service exited with non-zero code")
+	outputStr := strings.TrimSpace(string(output))
+	if outputStr == "" || outputStr == "[]" {
+		return fmt.Errorf("service not found")
 	}
-	return fmt.Errorf("service not completed")
+
+	// docker compose ps --format json returns an array of objects
+	if !strings.Contains(outputStr, "\"State\":\"exited\"") && !strings.Contains(outputStr, "\"Status\":\"exited\"") {
+		return fmt.Errorf("service not completed: %s", outputStr)
+	}
+
+	// Check exit code
+	if strings.Contains(outputStr, "\"ExitCode\":0") {
+		return nil
+	}
+	return fmt.Errorf("service exited with non-zero code: %s", outputStr)
 }
 
 func isRetryable(err error) bool {

@@ -65,14 +65,8 @@ modules:
 client_data:
   source: "static"
   version: "v20.0"
-environment:
-  vars: {}
-compose: {}
-```
 
 > **Client data**: Uses pre-extracted data from `wowgaming/client-data` releases (no WoW client needed).
-> Set `source: "local"` + `path: "~/wow-client"` if you want to extract from a local WoW 3.3.5a client.
-
 ### 3. Fetch the Static Catalogue (No Auth Required)
 
 ```sh
@@ -132,11 +126,40 @@ teeter doctor
 ```sh
 teeter up          # Full orchestration: lock → pull → buildctx → compose → up → health wait
 teeter status      # Formatted health table
-teeter logs -f ac-worldserver  # Use docker compose logs directly
+# Use docker compose logs directly for log streaming
 teeter down --volumes
 ```
 
-## Current Capabilities (Phases 0-5 Complete, Phase 6 Started)
+## Safe Migration Workflow
+
+When you want to add modules or change configuration:
+
+```sh
+# 1. Build new worldserver image
+teeter build
+
+# 2. Validate with ephemeral DB (safe dry-run, zero risk to your data)
+teeter validate buildctx --buildctx <newhash> --ephemeral
+# → "Would apply 47 new updates from mod-auctionhouse. Estimated 30s. No errors."
+
+# 3. Backup persistent DB
+teeter backup --output backup.sql.gz
+
+# 4. Migrate persistent DB (apply new SQL, idempotent)
+teeter migrate --buildctx <newhash>
+# → "Applied 47 new updates... in 30s"
+
+# 5. Switch runtime to new buildctx (atomic)
+teeter switch --buildctx <newhash>
+
+# 6. Start stack
+teeter up
+
+# Rollback if needed:
+teeter switch --rollback
+```
+
+## Current Capabilities
 
 | Command | Status |
 |---------|--------|
@@ -152,9 +175,10 @@ teeter down --volumes
 | `teeter down` | ✅ Graceful shutdown + lock release |
 | `teeter status` | ✅ Formatted health table |
 | `teeter client-data pull` | ✅ Download pre-extracted client data |
-| `teeter cache` / `teeter list` | 🚧 Phase 7 |
-| `teeter backup` / `teeter restore` | 🚧 Phase 8 |
-| `teeter dev` | 🚧 Phase 9 |
+| `teeter switch` | ✅ Atomic runtime cutover / rollback |
+| `teeter validate buildctx --ephemeral` | ✅ Dry-run validation |
+| `teeter migrate` | ✅ Apply SQL to persistent DB |
+| `teeter backup` / `teeter restore` | ✅ Disaster recovery |
 
 ## Manifest Reference (Minimal)
 
@@ -180,11 +204,6 @@ modules:
 client_data:
   source: "static"
   version: "v20.0"
-  # source: "local"        # Alternative: extract from local WoW client
-  # path: "~/wow-client"
-  # extract_maps: true
-  # extract_vmaps: true
-  # extract_mmaps: true
 environment:
   vars:
     CUSTOM_VAR: "value"
@@ -221,6 +240,7 @@ All other services use stable upstream AC images.
 ## Configuration
 
 Global config: `~/.teeter/config.yaml`
+
 ```yaml
 cache_dir: "~/.teeter/cache"
 catalogue_url: "https://raw.githubusercontent.com/azerothcore/azerothcore.github.io/master/data/catalogue.json"
@@ -229,9 +249,9 @@ link_strategy: "auto"  # hardlink | symlink | auto | copy
 
 ## Documentation
 
-* [Design & Architecture](docs/design.md)
-* [Manifest Specification](docs/manifest.md) *(coming soon)*
-* [Caveat Emptor](docs/caveats.md)
+- [Design & Architecture](docs/design.md)
+- [Manifest Specification](docs/manifest.md)
+- [Caveats](docs/caveats.md)
 
 ## License
 

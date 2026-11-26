@@ -5,7 +5,7 @@ acore:
   repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
   branch: "Playerbot"
 modules: []
-# No client_data section - valid for CI environments
+client_data:
+  source: "static"
+  version: "v20.0"
 environment:
-  vars: {}
-compose: {}

@@ -65,10 +65,12 @@ func NewValidateCmd() *cobra.Command {
 			return nil
 		},
 	}
-
 	cmd.Flags().StringVarP(&manifestPath, "manifest", "m", "", "Path to manifest file (default: teeter.yaml or .teeter/manifest.yaml)")
 	cmd.Flags().BoolVar(&strict, "strict", false, "Fail on warnings (not yet implemented)")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output JSON instead of human-readable")
+
+	// Add buildctx subcommand
+	cmd.AddCommand(NewValidateBuildCtxCmd())
 
 	return cmd
 }

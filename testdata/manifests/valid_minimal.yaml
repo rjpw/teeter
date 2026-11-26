@@ -6,8 +6,8 @@ acore:
   branch: "Playerbot"
 modules: []
 client_data:
-  source: "local"
-  wow_client_maps_path: "~/wow-client"
+  source: "static"
+  version: "v20.0"
 environment:
   vars: {}
 compose: {}

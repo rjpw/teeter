@@ -51,6 +51,8 @@ func main() {
 		commands.NewRestoreCmd(),
 		commands.NewClientDataCmd(),
 		commands.NewDevCmd(),
+		commands.NewSwitchCmd(),
+		commands.NewMigrateCmd(),
 		commands.NewVersionCmd(version, commit, buildDate),
 	)
 

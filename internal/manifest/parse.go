@@ -48,7 +48,7 @@ func ParseBytes(data []byte, path ...string) (*Manifest, error) {
 
 	// Apply defaults
 	if m.ClientData.Source == "" {
-		m.ClientData.Source = "local"
+		m.ClientData.Source = "static"
 	}
 	for i := range m.Modules {
 		if m.Modules[i].Source == "" {

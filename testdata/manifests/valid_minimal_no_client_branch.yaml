@@ -7,11 +7,8 @@ acore:
   # No commit specified - will resolve to latest
 modules: []
 client_data:
-  source: "local"
-  wow_client_maps_path: "/tmp/wow-client"
-  extract_maps: false
-  extract_vmaps: false
-  extract_mmaps: false
+  source: "static"
+  version: "v20.0"
 environment:
   vars: {}
 compose: {}

@@ -180,38 +180,14 @@ func Validate(m *Manifest, manifestDir string) error {
 		}
 	}
 
-	// Rule 8: ClientData.Source in local, url; if local and extraction enabled, Path required and exists
-	validClientSources := map[string]bool{"local": true, "url": true, "static": true}
+	// Rule 8: ClientData.Source must be "static" (only supported source)
+	validClientSources := map[string]bool{"static": true}
 	if !validClientSources[m.ClientData.Source] {
 		errs = append(errs, &ValidationError{
 			Code:    ErrCodeInvalid,
 			Field:   "client_data.source",
-			Message: fmt.Sprintf("invalid source %q, allowed: local, url, static", m.ClientData.Source),
+			Message: fmt.Sprintf("invalid source %q, only 'static' is supported", m.ClientData.Source),
 		})
-	} else if m.ClientData.Source == "local" {
-		// Only require path if extraction is actually enabled
-		needsExtraction := m.ClientData.ExtractMaps || m.ClientData.ExtractVmaps || m.ClientData.ExtractMmaps
-		if needsExtraction {
-			if m.ClientData.WoWClientMapsPath == "" {
-				errs = append(errs, &ValidationError{
-					Code:    ErrCodeInvalid,
-					Field:   "client_data.wow_client_maps_path",
-					Message: "required when source is local and extraction is enabled",
-				})
-			} else {
-				path := expandHome(m.ClientData.WoWClientMapsPath)
-				if !filepath.IsAbs(path) {
-					path = filepath.Join(manifestDir, path)
-				}
-				if _, err := os.Stat(path); err != nil {
-					errs = append(errs, &ValidationError{
-						Code:    ErrCodeIO,
-						Field:   "client_data.wow_client_maps_path",
-						Message: fmt.Sprintf("path not found: %s", path),
-					})
-				}
-			}
-		}
 	} else if m.ClientData.Source == "static" {
 		// For static source, validate version if provided
 		if m.ClientData.Version != "" && !strings.HasPrefix(m.ClientData.Version, "v") {

@@ -21,6 +21,11 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 	if len(hash) > 8 {
 		hash = hash[:8]
 	}
+	// Volume names use project name (stable across build context changes)
+	projectName := g.Manifest.Project.Name
+	volName := func(base string) string {
+		return fmt.Sprintf("teeter-%s-%s", projectName, base)
+	}
 	// Default to AC's master tag; manifest can override via compose.build_strategy or env
 	dockerImageTag := g.Manifest.Compose.BuildStrategy
 	if dockerImageTag == "" {
@@ -32,20 +37,17 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 
 	services := make(map[string]Service)
 
-	// ac-database - MySQL
+	// ac-database - MySQL (using root user per AC official pattern)
 	services["ac-database"] = Service{
 		Image: "mysql:8.4",
 		Environment: []string{
 			"MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}",
-			"MYSQL_DATABASE=acore_world",
-			"MYSQL_USER=acore",
-			"MYSQL_PASSWORD=${MYSQL_PASSWORD}",
 		},
 		Volumes: []string{
-			"mysql-data:/var/lib/mysql",
+			fmt.Sprintf("%s:/var/lib/mysql", volName("mysql-data")),
 		},
 		HealthCheck: &HealthCheck{
-			Test:        []string{"CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "acore", "-p${MYSQL_PASSWORD}"},
+			Test:        []string{"CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"},
 			Interval:    "10s",
 			Timeout:     "5s",
 			Retries:     10,
@@ -59,12 +61,12 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 	// ac-db-import - oneshot database initialization (upstream image)
 	services["ac-db-import"] = Service{
 		Image:   fmt.Sprintf("acore/ac-wotlk-db-import:%s", dockerImageTag),
-		Command: []string{"/entrypoint.sh", "dbimport"},
+		Command: []string{"dbimport"},
 		EnvFile: []string{".env", "env.ac"},
 		Volumes: []string{
-			"mysql-data:/var/lib/mysql",
-			"extracted-data:/azerothcore/env/dist/data",
-			"config:/azerothcore/env/dist/etc",
+			fmt.Sprintf("%s:/var/lib/mysql", volName("mysql-data")),
+			fmt.Sprintf("%s:/azerothcore/env/dist/data", volName("extracted-data")),
+			"./sql/teeter-dbimport.conf:/azerothcore/env/dist/etc/dbimport.conf:ro",
 			"./sql/teeter-combined.sql:/azerothcore/data/custom.sql:ro",
 		},
 		DependsOn: map[string]DependsOnConfig{
@@ -78,22 +80,16 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 	// ac-authserver (upstream image)
 	services["ac-authserver"] = Service{
 		Image:   fmt.Sprintf("acore/ac-wotlk-authserver:%s", dockerImageTag),
-		Command: []string{"/entrypoint.sh", "authserver"},
+		Command: []string{"authserver"},
 		EnvFile: []string{".env", "env.ac"},
 		Ports:   []string{"3724:3724"},
 		Volumes: []string{
-			"config:/azerothcore/env/dist/etc",
-			"extracted-data:/azerothcore/env/dist/data:ro",
+			"./sql/teeter-authserver.conf:/azerothcore/env/dist/etc/authserver.conf:ro",
+			fmt.Sprintf("%s:/azerothcore/env/dist/data:ro", volName("extracted-data")),
 		},
 		DependsOn: map[string]DependsOnConfig{
 			"ac-database":  {Condition: "service_healthy"},
 			"ac-db-import": {Condition: "service_completed_successfully"},
-		},
-		HealthCheck: &HealthCheck{
-			Test:     []string{"CMD", "nc", "-z", "localhost", "3724"},
-			Interval: "10s",
-			Timeout:  "5s",
-			Retries:  10,
 		},
 		Restart:  "unless-stopped",
 		Networks: []string{"ac-network"},
@@ -108,24 +104,18 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 			Dockerfile: "azerothcore/apps/docker/Dockerfile",
 			Target:     "worldserver",
 		},
-		Command: []string{"/entrypoint.sh", "worldserver"},
+		Command: []string{"worldserver"},
 		EnvFile: []string{".env", "env.ac"},
 		Ports:   []string{"8085:8085"},
 		Volumes: []string{
-			"config:/azerothcore/env/dist/etc",
-			"extracted-data:/azerothcore/env/dist/data:ro",
+			"./sql/teeter-worldserver.conf:/azerothcore/env/dist/etc/worldserver.conf:ro",
+			fmt.Sprintf("%s:/azerothcore/env/dist/data:ro", volName("extracted-data")),
 		},
 		DependsOn: map[string]DependsOnConfig{
 			"ac-database":         {Condition: "service_healthy"},
 			"ac-db-import":        {Condition: "service_completed_successfully"},
-			"ac-authserver":       {Condition: "service_healthy"},
+			"ac-authserver":       {Condition: "service_started"},
 			"ac-client-data-init": {Condition: "service_completed_successfully"},
-		},
-		HealthCheck: &HealthCheck{
-			Test:     []string{"CMD", "nc", "-z", "localhost", "8085"},
-			Interval: "10s",
-			Timeout:  "5s",
-			Retries:  10,
 		},
 		Restart:  "unless-stopped",
 		Networks: []string{"ac-network"},
@@ -135,11 +125,11 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 	// ac-client-data-init - oneshot client data extraction (upstream image)
 	services["ac-client-data-init"] = Service{
 		Image:   fmt.Sprintf("acore/ac-wotlk-client-data:%s", dockerImageTag),
-		Command: []string{"/entrypoint.sh", "client-data"},
+		Command: []string{"bash", "-c", "source /azerothcore/apps/installer/includes/functions.sh && inst_download_client_data"},
 		EnvFile: []string{".env", "env.ac"},
 		Volumes: []string{
-			"client-data:/wow-client:ro",
-			"extracted-data:/azerothcore/env/dist/data",
+			fmt.Sprintf("%s:/wow-client:ro", volName("client-data")),
+			fmt.Sprintf("%s:/azerothcore/env/dist/data", volName("extracted-data")),
 		},
 		DependsOn: map[string]DependsOnConfig{
 			"ac-db-import": {Condition: "service_completed_successfully"},
@@ -155,8 +145,8 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 		Command: []string{"sleep", "infinity"},
 		EnvFile: []string{".env", "env.ac"},
 		Volumes: []string{
-			"config:/azerothcore/env/dist/etc",
-			"extracted-data:/azerothcore/env/dist/data:ro",
+			fmt.Sprintf("%s:/azerothcore/env/dist/etc", volName("config")),
+			fmt.Sprintf("%s:/azerothcore/env/dist/data:ro", volName("extracted-data")),
 		},
 		Networks: []string{"ac-network"},
 		Profiles: []string{"tools"},
@@ -228,10 +218,14 @@ func (g *ServiceGenerator) GenerateNetworks() map[string]Network {
 
 // GenerateVolumes generates the volumes configuration.
 func (g *ServiceGenerator) GenerateVolumes() map[string]Volume {
+	projectName := g.Manifest.Project.Name
+	volName := func(base string) string {
+		return fmt.Sprintf("teeter-%s-%s", projectName, base)
+	}
 	return map[string]Volume{
-		"mysql-data":     {Driver: "local"},
-		"extracted-data": {Driver: "local"},
-		"config":         {Driver: "local"},
-		"client-data":    {Driver: "local"},
+		volName("mysql-data"):     {Driver: "local"},
+		volName("extracted-data"): {Driver: "local"},
+		volName("config"):         {Driver: "local"},
+		volName("client-data"):    {Driver: "local"},
 	}
 }

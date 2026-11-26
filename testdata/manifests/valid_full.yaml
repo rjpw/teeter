@@ -40,11 +40,8 @@ database:
   seed:
     - "sql/custom/seed_data.sql"
 client_data:
-  source: "local"
-  wow_client_maps_path: "~/wow-client"
-  extract_maps: true
-  extract_vmaps: true
-  extract_mmaps: true
+  source: "static"
+  version: "v20.0"
 environment:
   vars:
     CUSTOM_VAR: "custom_value"

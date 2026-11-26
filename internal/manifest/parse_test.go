@@ -20,8 +20,8 @@ func TestParseFile_ValidMinimal(t *testing.T) {
 	assert.Equal(t, "https://github.com/mod-playerbots/azerothcore-wotlk", m.ACore.Repo)
 	assert.Equal(t, "Playerbot", m.ACore.Branch)
 	assert.Len(t, m.Modules, 0)
-	assert.Equal(t, "local", m.ClientData.Source)
-	assert.Equal(t, "~/wow-client", m.ClientData.WoWClientMapsPath)
+	assert.Equal(t, "static", m.ClientData.Source)
+	assert.Equal(t, "v20.0", m.ClientData.Version)
 }
 
 func TestParseFile_ValidFull(t *testing.T) {
@@ -48,9 +48,8 @@ func TestParseFile_ValidFull(t *testing.T) {
 	assert.Equal(t, "https://github.com/someuser/ah-bot", m.Modules[2].Path)
 	assert.Len(t, m.Database.Migrations, 2)
 	assert.Len(t, m.Database.Seed, 1)
-	assert.True(t, m.ClientData.ExtractMaps)
-	assert.True(t, m.ClientData.ExtractVmaps)
-	assert.True(t, m.ClientData.ExtractMmaps)
+	assert.Equal(t, "static", m.ClientData.Source)
+	assert.Equal(t, "v20.0", m.ClientData.Version)
 	assert.Equal(t, "custom_value", m.Environment.Vars["CUSTOM_VAR"])
 	assert.Contains(t, m.Environment.Secrets, "MYSQL_ROOT_PASSWORD")
 	assert.Equal(t, "ac-network", m.Compose.Network)
@@ -67,8 +66,8 @@ func TestParseFile_ValidNoClient(t *testing.T) {
 
 	assert.Equal(t, "1", m.Version)
 	assert.Equal(t, "ci-server", m.Project.Name)
-	assert.Equal(t, "local", m.ClientData.Source) // default applied
-	assert.Empty(t, m.ClientData.WoWClientMapsPath)
+	assert.Equal(t, "static", m.ClientData.Source) // default applied
+	assert.Equal(t, "v20.0", m.ClientData.Version)
 }
 
 func TestParseFile_NotFound(t *testing.T) {
