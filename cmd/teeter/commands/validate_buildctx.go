@@ -38,6 +38,13 @@ Without --ephemeral, validates against the build context's existing compose file
 				return fmt.Errorf("--buildctx required")
 			}
 
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestPath = resolvedManifestPath
+
 			// Load manifest
 			m, err := manifest.ParseFile(manifestPath)
 			if err != nil {

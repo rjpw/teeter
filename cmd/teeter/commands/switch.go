@@ -31,6 +31,13 @@ Use --rollback to switch back to the previous build context.
 Use --list to show all available build contexts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestPath = resolvedManifestPath
+
 			// Load manifest to get work directory
 			m, err := manifest.ParseFile(manifestPath)
 			if err != nil {

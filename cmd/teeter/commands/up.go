@@ -37,6 +37,13 @@ func NewUpCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestPath = resolvedManifestPath
+
 			// Load manifest
 			m, err := manifest.ParseFile(manifestPath)
 			if err != nil {
@@ -50,6 +57,8 @@ func NewUpCmd() *cobra.Command {
 			if err := manifest.Validate(m, manifestDir); err != nil {
 				return err
 			}
+
+			workDir := filepath.Dir(manifestDir)
 
 			// Acquire project lock
 			unlock, err := project.AcquireLock(manifestDir)
@@ -93,8 +102,6 @@ func NewUpCmd() *cobra.Command {
 				return fmt.Errorf("resolve modules: %w", err)
 			}
 
-			// Assemble build context
-			workDir := filepath.Dir(manifestDir)
 			bc, err := buildctx.Assemble(ctx, m, &res, c, workDir)
 			if err != nil {
 				return fmt.Errorf("assemble build context: %w", err)

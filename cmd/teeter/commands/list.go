@@ -92,12 +92,13 @@ func NewListCmd() *cobra.Command {
 					return fmt.Errorf("multiple modules matched; use --limit 1 or narrow search")
 				}
 
-				// Default manifest path
-				if manifest == "" {
-					manifest = "teeter.yaml"
+				// Resolve manifest path
+				resolvedManifestPath, err := ResolveManifestPath(cmd, manifest)
+				if err != nil {
+					return err
 				}
 
-				return addModuleToManifest(manifest, modules[0])
+				return addModuleToManifest(resolvedManifestPath, modules[0])
 			}
 
 			if jsonOut {

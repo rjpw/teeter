@@ -33,6 +33,13 @@ determines which compose file to use (runtime or build context).`,
 				return fmt.Errorf("--input required")
 			}
 
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestPath = resolvedManifestPath
+
 			// Load manifest
 			m, err := manifest.ParseFile(manifestPath)
 			if err != nil {

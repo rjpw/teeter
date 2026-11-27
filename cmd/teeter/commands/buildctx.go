@@ -31,6 +31,13 @@ func NewBuildCtxCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestPath = resolvedManifestPath
+
 			// Load manifest
 			m, err := manifest.ParseFile(manifestPath)
 			if err != nil {

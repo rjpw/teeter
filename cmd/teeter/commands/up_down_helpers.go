@@ -13,6 +13,7 @@ import (
 	"github.com/rjpw/teeter/internal/catalogue"
 	"github.com/rjpw/teeter/internal/config"
 	"github.com/rjpw/teeter/internal/manifest"
+	"github.com/spf13/cobra"
 )
 
 // BuildContextFinder finds the build context for a project
@@ -114,6 +115,18 @@ func FindManifest(workDir string) string {
 	return "teeter.yaml"
 }
 
+// ResolveManifestPath resolves the manifest path from flags or auto-detection
+func ResolveManifestPath(cmd *cobra.Command, manifestPath string) (string, error) {
+	if manifestPath != "" {
+		return manifestPath, nil
+	}
+	workDir, _ := cmd.Flags().GetString("workdir")
+	resolved := FindManifest(workDir)
+	if _, err := os.Stat(resolved); err != nil {
+		return "", fmt.Errorf("manifest not found: %w", err)
+	}
+	return resolved, nil
+}
 // newDockerCommand creates a docker command with proper environment
 func newDockerCommand(ctx context.Context, manifestDir, projectName, composeFile string, args ...string) *exec.Cmd {
 	// Use manifest directory as working directory, set project name explicitly

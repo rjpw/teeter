@@ -19,19 +19,17 @@ func NewValidateCmd() *cobra.Command {
 		Short: "Validate a teeter manifest",
 		Long:  `Validate the manifest file for correctness.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get manifest path from flag or default
-			if manifestPath == "" {
-				workDir, _ := cmd.Flags().GetString("workdir")
-				if workDir == "" {
-					workDir = "."
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				if jsonOutput {
+					printJSONError(err)
+				} else {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				}
-				manifestPath = "teeter.yaml"
-				// Check if .teeter/manifest.yaml exists
-				teeterManifest := fmt.Sprintf("%s/.teeter/manifest.yaml", workDir)
-				if _, err := os.Stat(teeterManifest); err == nil {
-					manifestPath = teeterManifest
-				}
+				return exitCode(2)
 			}
+			manifestPath = resolvedManifestPath
 
 			// Parse manifest
 			m, err := manifest.ParseFile(manifestPath)

@@ -49,10 +49,9 @@ The version is read from manifest.client_data.version (e.g., "v20.0").`,
 			ctx := context.Background()
 
 			// Resolve manifest path
-			workDir, _ := os.Getwd()
-			resolvedManifestPath := *manifestPath
-			if resolvedManifestPath == "" {
-				resolvedManifestPath = FindManifest(workDir)
+			resolvedManifestPath, err := ResolveManifestPath(cmd, *manifestPath)
+			if err != nil {
+				return err
 			}
 
 			// Load manifest

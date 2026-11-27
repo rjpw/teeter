@@ -28,12 +28,13 @@ func NewPullCmd() *cobra.Command {
 			ctx := cmd.Context()
 
 			cfg := config.Get()
-			workDir, _ := cmd.Flags().GetString("workdir")
 
-			// Determine manifest path
-			if manifestPath == "" {
-				manifestPath = findManifest(workDir)
+			// Resolve manifest path
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
 			}
+			manifestPath = resolvedManifestPath
 
 			m, err := manifest.ParseFile(manifestPath)
 			if err != nil {

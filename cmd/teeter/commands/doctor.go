@@ -46,25 +46,30 @@ func NewDoctorCmd() *cobra.Command {
 		Short: "Validate system suitability for local builds",
 		Long:  `Check system resources (RAM, CPU, disk, Docker) for local Docker builds.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+		ctx := context.Background()
 
-			var m *manifest.Manifest
-			var bc *buildctx.BuildContext
-			var err error
+		var m *manifest.Manifest
+		var bc *buildctx.BuildContext
 
-			if manifestPath != "" {
-				m, err = manifest.ParseFile(manifestPath)
-				if err != nil {
-					return err
-				}
-				manifestDir := filepath.Dir(manifestPath)
-				if manifestDir == "." {
-					manifestDir, _ = os.Getwd()
-				}
-				if err := manifest.Validate(m, manifestDir); err != nil {
-					return err
-				}
+		// Resolve manifest path if provided
+		if manifestPath != "" {
+			resolvedManifestPath, err := ResolveManifestPath(cmd, manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestPath = resolvedManifestPath
 
+			m, err = manifest.ParseFile(manifestPath)
+			if err != nil {
+				return err
+			}
+			manifestDir := filepath.Dir(manifestPath)
+			if manifestDir == "." {
+				manifestDir, _ = os.Getwd()
+			}
+			if err := manifest.Validate(m, manifestDir); err != nil {
+				return err
+			}
 				cfg := config.Get()
 				c := cache.NewFSCache(cfg.CacheDir, cache.LinkStrategyFromString(cfg.LinkStrategy))
 				idx, err := catalogue.LoadOrFetchIndex(ctx, cfg)

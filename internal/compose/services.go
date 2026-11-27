@@ -2,6 +2,7 @@ package compose
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/rjpw/teeter/internal/buildctx"
 	"github.com/rjpw/teeter/internal/manifest"
@@ -100,8 +101,8 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 	services["ac-worldserver"] = Service{
 		Image: worldserverImage,
 		Build: &BuildConfig{
-			Context:    buildCtxPath,
-			Dockerfile: "azerothcore/apps/docker/Dockerfile",
+			Context:    filepath.Join(buildCtxPath, "azerothcore"),
+			Dockerfile: "apps/docker/Dockerfile",
 			Target:     "worldserver",
 		},
 		Command: []string{"worldserver"},
