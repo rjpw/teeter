@@ -9,15 +9,18 @@ import (
 
 	"github.com/rjpw/teeter/internal/catalogue"
 	"github.com/rjpw/teeter/internal/config"
+	"github.com/rjpw/teeter/internal/manifest"
 	"github.com/spf13/cobra"
 )
 
 func NewListCmd() *cobra.Command {
 	var (
-		category string
-		search   string
-		limit    int
-		jsonOut  bool
+		category   string
+		search     string
+		limit      int
+		jsonOut    bool
+		add        bool
+		manifest   string
 	)
 
 	cmd := &cobra.Command{
@@ -80,6 +83,23 @@ func NewListCmd() *cobra.Command {
 				modules = modules[:limit]
 			}
 
+			// Handle --add flag
+			if add {
+				if len(modules) == 0 {
+					return fmt.Errorf("no modules found to add")
+				}
+				if len(modules) > 1 && limit == 0 {
+					return fmt.Errorf("multiple modules matched; use --limit 1 or narrow search")
+				}
+
+				// Default manifest path
+				if manifest == "" {
+					manifest = "teeter.yaml"
+				}
+
+				return addModuleToManifest(manifest, modules[0])
+			}
+
 			if jsonOut {
 				return outputJSON(modules)
 			}
@@ -92,6 +112,8 @@ func NewListCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&search, "search", "s", "", "Search term (name, description, topics)")
 	cmd.Flags().IntVarP(&limit, "limit", "l", 0, "Limit number of results (0 = no limit)")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmd.Flags().BoolVar(&add, "add", false, "Add matched module to manifest (requires single match)")
+	cmd.Flags().StringVar(&manifest, "manifest", "", "Manifest file path (default: teeter.yaml)")
 	return cmd
 }
 
@@ -137,4 +159,45 @@ func outputJSON(modules []catalogue.ModuleEntry) error {
 		out = append(out, manifestModule{Name: m.Name, Version: ver})
 	}
 	return json.NewEncoder(os.Stdout).Encode(out)
+}
+
+// addModuleToManifest adds a module to the manifest file
+func addModuleToManifest(manifestPath string, module catalogue.ModuleEntry) error {
+	// Determine version to use
+	version := ""
+	if module.LatestRelease != nil {
+		version = module.LatestRelease.TagName
+	} else if len(module.Releases) > 0 {
+		version = module.Releases[0].TagName
+	} else {
+		version = module.DefaultBranch
+	}
+
+	// Load existing manifest
+	m, err := manifest.ParseFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("parse manifest: %w", err)
+	}
+
+	// Check if module already exists
+	for _, existing := range m.Modules {
+		if existing.Name == module.Name {
+			return fmt.Errorf("module %q already in manifest", module.Name)
+		}
+	}
+
+	// Add new module
+	m.Modules = append(m.Modules, manifest.ModuleSpec{
+		Name:    module.Name,
+		Source:  "catalogue",
+		Version: version,
+	})
+
+	// Save manifest
+	if err := m.SaveFile(manifestPath); err != nil {
+		return fmt.Errorf("save manifest: %w", err)
+	}
+
+	fmt.Printf("Added module %q (version: %s) to %s\n", module.Name, version, manifestPath)
+	return nil
 }

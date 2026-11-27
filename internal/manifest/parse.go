@@ -55,6 +55,14 @@ func ParseBytes(data []byte, path ...string) (*Manifest, error) {
 			m.Modules[i].Source = "catalogue"
 		}
 	}
-
 	return &m, nil
+}
+
+// SaveFile saves a manifest to a file path as YAML
+func (m *Manifest) SaveFile(path string) error {
+	data, err := yaml.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("marshal manifest: %w", err)
+	}
+	return os.WriteFile(path, data, 0644)
 }
