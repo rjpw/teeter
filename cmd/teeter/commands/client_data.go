@@ -202,14 +202,13 @@ func extractViaContainer(ctx context.Context, zipPath, volumeName string) error 
 		return fmt.Errorf("abs zip path: %w", err)
 	}
 
-	// docker run --rm -v <volume>:/data -v <zip>:/data.zip alpine:latest sh -c "cd /data && unzip -o /data.zip 'maps/*' 'vmaps/*' 'mmaps/*'"
 	args := []string{
 		"run", "--rm",
 		"-v", volumeName + ":/data",
 		"-v", absZipPath + ":/data.zip:ro",
 		"alpine:latest",
 		"sh", "-c",
-		"cd /data && unzip -o /data.zip 'maps/*' 'vmaps/*' 'mmaps/*'",
+		"cd /data && unzip -q -o /data.zip 'maps/*' 'vmaps/*' 'mmaps/*'",
 	}
 
 	cmd := exec.CommandContext(ctx, "docker", args...)
