@@ -151,7 +151,6 @@ func NewComposeCmd() *cobra.Command {
 
 			// Create compose config
 			composeConfig := compose.ComposeConfig{
-				Version:  "3.8",
 				Services: services,
 				Networks: networks,
 				Volumes:  volumes,
