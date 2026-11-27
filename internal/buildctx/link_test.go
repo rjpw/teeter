@@ -107,14 +107,13 @@ func TestVerifyModuleStructure(t *testing.T) {
 	if err != nil {
 		t.Errorf("missing CMakeLists.txt should not fail: %v", err)
 	}
-
-	// Missing src/
+	// Missing src/ (should warn but not fail - script-only modules)
 	missingSrc := filepath.Join(tmpDir, "missing-src")
 	os.MkdirAll(missingSrc, 0755)
 	os.WriteFile(filepath.Join(missingSrc, "CMakeLists.txt"), []byte("cmake"), 0644)
 	err = verifyModuleStructure(missingSrc, "testmod")
-	if err == nil {
-		t.Error("expected error for missing src/")
+	if err != nil {
+		t.Errorf("missing src/ should not fail (script-only modules allowed): %v", err)
 	}
 }
 

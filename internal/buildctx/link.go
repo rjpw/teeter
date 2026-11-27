@@ -43,13 +43,14 @@ func LinkModules(ctx context.Context, bc *BuildContext, c cache.Cache, strategy 
 
 // verifyModuleStructure checks that the linked module has expected structure.
 func verifyModuleStructure(path, moduleName string) error {
-	// Check for src/ directory (required)
+	// Check for src/ directory (warn if missing, not fatal - some modules are script-only)
 	srcPath := filepath.Join(path, "src")
 	if _, err := os.Stat(srcPath); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("missing src/ directory")
+			fmt.Fprintf(os.Stderr, "Warning: module %s has no src/ directory (script-only or config module)\n", moduleName)
+		} else {
+			return err
 		}
-		return err
 	}
 
 	// Check for CMakeLists.txt or <module>.cmake (warn if missing, not fatal)
