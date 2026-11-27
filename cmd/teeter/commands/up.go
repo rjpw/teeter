@@ -196,26 +196,80 @@ func NewUpCmd() *cobra.Command {
 				}
 			}
 
-			// Start services
+			// Start services in correct order
 			fmt.Println("Starting AzerothCore server...")
-			upArgs := []string{}
-			upArgs = append(upArgs, GetProfileArgs(m)...)
-			upArgs = append(upArgs, "up")
-			if detach {
-				upArgs = append(upArgs, "-d")
-			}
-			upCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, upArgs...)
-			upCmd.Stdout = os.Stdout
-			upCmd.Stderr = os.Stderr
-			if err := upCmd.Run(); err != nil {
-				return fmt.Errorf("docker compose up: %w", err)
-			}
 
-			if wait && detach {
-				if err := waitForHealth(ctx, manifestDir, m.Project.Name, composeFile, timeout); err != nil {
-					return fmt.Errorf("wait for health: %w", err)
-				}
+			// 1. Start database first and wait for healthy
+			fmt.Println("  [1/5] Starting database...")
+			dbArgs := []string{"up", "-d", "ac-database"}
+			dbArgs = append(dbArgs, GetProfileArgs(m)...)
+			dbCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dbArgs...)
+			dbCmd.Stdout = os.Stdout
+			dbCmd.Stderr = os.Stderr
+			if err := dbCmd.Run(); err != nil {
+				return fmt.Errorf("start database: %w", err)
 			}
+			if err := waitForServiceHealth(ctx, manifestDir, m.Project.Name, composeFile, timeout, "ac-database"); err != nil {
+				return fmt.Errorf("database unhealthy: %w", err)
+			}
+			fmt.Println("  ✅ Database healthy")
+
+			// 2. Run dbimport (oneshot)
+			fmt.Println("  [2/5] Running database import...")
+			dbimportArgs := []string{"run", "--rm", "ac-db-import"}
+			dbimportArgs = append(dbimportArgs, GetProfileArgs(m)...)
+			dbimportCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dbimportArgs...)
+			dbimportCmd.Stdout = os.Stdout
+			dbimportCmd.Stderr = os.Stderr
+			if err := dbimportCmd.Run(); err != nil {
+				return fmt.Errorf("dbimport failed: %w", err)
+			}
+			fmt.Println("  ✅ Database import completed")
+
+			// 3. Run client-data-init (oneshot)
+			fmt.Println("  [3/5] Initializing client data...")
+			clientDataArgs := []string{"run", "--rm", "ac-client-data-init"}
+			clientDataArgs = append(clientDataArgs, GetProfileArgs(m)...)
+			clientDataCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, clientDataArgs...)
+			clientDataCmd.Stdout = os.Stdout
+			clientDataCmd.Stderr = os.Stderr
+			if err := clientDataCmd.Run(); err != nil {
+				return fmt.Errorf("client-data-init failed: %w", err)
+			}
+			fmt.Println("  ✅ Client data initialized")
+
+			// 4. Start authserver
+			fmt.Println("  [4/5] Starting authserver...")
+			authArgs := []string{"up", "-d", "ac-authserver"}
+			authArgs = append(authArgs, GetProfileArgs(m)...)
+			authCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, authArgs...)
+			authCmd.Stdout = os.Stdout
+			authCmd.Stderr = os.Stderr
+			if err := authCmd.Run(); err != nil {
+				return fmt.Errorf("start authserver: %w", err)
+			}
+			if err := waitForServiceRunning(ctx, manifestDir, m.Project.Name, composeFile, timeout, "ac-authserver"); err != nil {
+				return fmt.Errorf("authserver failed: %w", err)
+			}
+			fmt.Println("  ✅ Authserver running")
+
+			// 5. Start worldserver
+			fmt.Println("  [5/5] Starting worldserver...")
+			worldArgs := []string{"up", "-d", "ac-worldserver"}
+			worldArgs = append(worldArgs, GetProfileArgs(m)...)
+			worldCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, worldArgs...)
+			worldCmd.Stdout = os.Stdout
+			worldCmd.Stderr = os.Stderr
+			if err := worldCmd.Run(); err != nil {
+				return fmt.Errorf("start worldserver: %w", err)
+			}
+			if err := waitForServiceRunning(ctx, manifestDir, m.Project.Name, composeFile, timeout, "ac-worldserver"); err != nil {
+				return fmt.Errorf("worldserver failed: %w", err)
+			}
+			fmt.Println("  ✅ Worldserver running")
+
+			fmt.Println()
+			fmt.Println("Server ready!")
 
 			// Print connection info
 			printConnectionInfo()
@@ -285,6 +339,38 @@ func waitForHealth(ctx context.Context, manifestDir, projectName, composeFile st
 	fmt.Println()
 	fmt.Println("Server ready!")
 	return nil
+}
+
+func waitForServiceHealth(ctx context.Context, manifestDir, projectName, composeFile string, timeout time.Duration, service string) error {
+	profileArgs := GetProfileArgsFromComposeFile(composeFile)
+	start := time.Now()
+	checkInterval := 5 * time.Second
+
+	for {
+		if time.Since(start) > timeout {
+			return fmt.Errorf("timeout waiting for %s to be healthy", service)
+		}
+		if err := checkServiceHealth(ctx, manifestDir, projectName, composeFile, profileArgs, service); err == nil {
+			return nil
+		}
+		time.Sleep(checkInterval)
+	}
+}
+
+func waitForServiceRunning(ctx context.Context, manifestDir, projectName, composeFile string, timeout time.Duration, service string) error {
+	profileArgs := GetProfileArgsFromComposeFile(composeFile)
+	start := time.Now()
+	checkInterval := 5 * time.Second
+
+	for {
+		if time.Since(start) > timeout {
+			return fmt.Errorf("timeout waiting for %s to be running", service)
+		}
+		if err := checkServiceRunning(ctx, manifestDir, projectName, composeFile, profileArgs, service); err == nil {
+			return nil
+		}
+		time.Sleep(checkInterval)
+	}
 }
 
 func checkServiceRunning(ctx context.Context, manifestDir, projectName, composeFile string, profileArgs []string, service string) error {
