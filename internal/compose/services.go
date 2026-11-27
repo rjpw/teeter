@@ -41,6 +41,7 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 	// ac-database - MySQL (using root user per AC official pattern)
 	services["ac-database"] = Service{
 		Image: "mysql:8.4",
+		Command: []string{"mysqld", "--bind-address=0.0.0.0"},
 		Environment: []string{
 			"MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}",
 		},
@@ -48,7 +49,7 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 			fmt.Sprintf("%s:/var/lib/mysql", volName("mysql-data")),
 		},
 		HealthCheck: &HealthCheck{
-			Test:        []string{"CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"},
+			Test:        []string{"CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"},
 			Interval:    "10s",
 			Timeout:     "5s",
 			Retries:     10,
