@@ -202,7 +202,7 @@ func NewUpCmd() *cobra.Command {
 			// 1. Start database first and wait for healthy
 			fmt.Println("  [1/5] Starting database...")
 			dbArgs := []string{"up", "-d", "ac-database"}
-			dbArgs = append(dbArgs, GetProfileArgs(m)...)
+			dbArgs = append(GetProfileArgs(m), dbArgs...)
 			dbCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dbArgs...)
 			dbCmd.Stdout = os.Stdout
 			dbCmd.Stderr = os.Stderr
@@ -217,7 +217,7 @@ func NewUpCmd() *cobra.Command {
 			// 2. Run dbimport (oneshot)
 			fmt.Println("  [2/5] Running database import...")
 			dbimportArgs := []string{"run", "--rm", "ac-db-import"}
-			dbimportArgs = append(dbimportArgs, GetProfileArgs(m)...)
+			dbimportArgs = append(GetProfileArgs(m), dbimportArgs...)
 			dbimportCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dbimportArgs...)
 			dbimportCmd.Stdout = os.Stdout
 			dbimportCmd.Stderr = os.Stderr
@@ -229,7 +229,7 @@ func NewUpCmd() *cobra.Command {
 			// 3. Run client-data-init (oneshot)
 			fmt.Println("  [3/5] Initializing client data...")
 			clientDataArgs := []string{"run", "--rm", "ac-client-data-init"}
-			clientDataArgs = append(clientDataArgs, GetProfileArgs(m)...)
+			clientDataArgs = append(GetProfileArgs(m), clientDataArgs...)
 			clientDataCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, clientDataArgs...)
 			clientDataCmd.Stdout = os.Stdout
 			clientDataCmd.Stderr = os.Stderr
@@ -241,7 +241,7 @@ func NewUpCmd() *cobra.Command {
 			// 4. Start authserver
 			fmt.Println("  [4/5] Starting authserver...")
 			authArgs := []string{"up", "-d", "ac-authserver"}
-			authArgs = append(authArgs, GetProfileArgs(m)...)
+			authArgs = append(GetProfileArgs(m), authArgs...)
 			authCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, authArgs...)
 			authCmd.Stdout = os.Stdout
 			authCmd.Stderr = os.Stderr
@@ -256,7 +256,7 @@ func NewUpCmd() *cobra.Command {
 			// 5. Start worldserver
 			fmt.Println("  [5/5] Starting worldserver...")
 			worldArgs := []string{"up", "-d", "ac-worldserver"}
-			worldArgs = append(worldArgs, GetProfileArgs(m)...)
+			worldArgs = append(GetProfileArgs(m), worldArgs...)
 			worldCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, worldArgs...)
 			worldCmd.Stdout = os.Stdout
 			worldCmd.Stderr = os.Stderr
