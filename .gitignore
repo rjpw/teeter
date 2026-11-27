@@ -35,4 +35,7 @@ go.work.sum
 
 # oh-my-pi local rules
 .omp
+
+# Binary for programs and plugins
 teeter
+cmd/teeter/teeter

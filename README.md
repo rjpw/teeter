@@ -26,11 +26,12 @@ The good news is, `teeter` will hopefully help you stand the tower back up when 
 ## Installation
 
 ```sh
-go install github.com/rjpw/teeter@latest
+go install github.com/rjpw/teeter/cmd/teeter@latest
 ```
 
-Verify installation:
+Verify installation (ensure `~/go/bin` is in your PATH):
 ```sh
+export PATH=$PATH:~/go/bin
 teeter --help
 ```
 
