@@ -14,6 +14,10 @@ import (
 	"github.com/rjpw/teeter/internal/manifest"
 )
 
+// ComposeTemplateVersion increments when the docker-compose template changes.
+// This forces build context regeneration when the compose structure changes.
+const ComposeTemplateVersion = 2
+
 // BuildContext represents the assembled build context for a teeter project.
 type BuildContext struct {
 	Path        string            // .teeter/buildctx/<hash>/
@@ -88,6 +92,9 @@ func Assemble(ctx context.Context, m *manifest.Manifest, res *catalogue.Resoluti
 // computeHash computes a content hash for the build context.
 func computeHash(m *manifest.Manifest, res *catalogue.Resolution) (string, error) {
 	h := sha256.New()
+
+	// Compose template version
+	h.Write([]byte(fmt.Sprintf("compose-template:%d\n", ComposeTemplateVersion)))
 
 	// AC commit
 	h.Write([]byte(res.ACCommit + "\n"))
