@@ -42,6 +42,15 @@ type ModuleEntry struct {
 	ACCompatibility []string          `json:"ac_compatibility"`
 }
 
+// ListModules returns all modules as a slice for easy searching/filtering.
+func (i *Index) ListModules() []ModuleEntry {
+	modules := make([]ModuleEntry, 0, len(i.Modules))
+	for _, m := range i.Modules {
+		modules = append(modules, m)
+	}
+	return modules
+}
+
 // Release represents a module release/tag.
 type Release struct {
 	TagName     string  `json:"tag_name"`
