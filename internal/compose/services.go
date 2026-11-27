@@ -44,6 +44,7 @@ func (g *ServiceGenerator) GenerateServices() (map[string]Service, error) {
 		Command: []string{"mysqld", "--bind-address=0.0.0.0"},
 		Environment: []string{
 			"MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}",
+			"MYSQL_ROOT_HOST=%",
 		},
 		Volumes: []string{
 			fmt.Sprintf("%s:/var/lib/mysql", volName("mysql-data")),
