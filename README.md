@@ -29,6 +29,11 @@ The good news is, `teeter` will hopefully help you stand the tower back up when 
 go install github.com/rjpw/teeter/cmd/teeter@latest
 ```
 
+If the Go module proxy hasn't indexed the latest version yet (404 on `sum.golang.org`):
+```sh
+GOSUMDB=off go install github.com/rjpw/teeter/cmd/teeter@latest
+```
+
 Verify installation (ensure `~/go/bin` is in your PATH):
 ```sh
 export PATH=$PATH:~/go/bin
