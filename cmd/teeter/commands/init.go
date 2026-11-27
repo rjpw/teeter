@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -18,8 +19,11 @@ func NewInitCmd() *cobra.Command {
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			manifest := defaultManifest()
+			// Default project name to current directory name
+			workDir, _ := os.Getwd()
+			defaultProjectName := filepath.Base(workDir)
 
+			manifest := defaultManifest(defaultProjectName)
 			if manifestPath == "" {
 				manifestPath = "teeter.yaml"
 			}
@@ -43,21 +47,21 @@ func NewInitCmd() *cobra.Command {
 	return cmd
 }
 
-func defaultManifest() string {
-	return `version: "1"
+func defaultManifest(projectName string) string {
+	return fmt.Sprintf(`version: "1"
 project:
-  name: "my-server"
+  name: "%s"
 acore:
   repo: "https://github.com/mod-playerbots/azerothcore-wotlk"
   branch: "Playerbot"
 modules: []
 client_data:
-  source: "local"
-  path: "~/wow-client"
+  source: "static"
+  version: "v20.0"
 environment:
   vars: {}
 compose: {}
-`
+`, projectName)
 }
 
 func printManifest(manifest string) error {
