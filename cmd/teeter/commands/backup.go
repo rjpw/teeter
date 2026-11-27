@@ -53,8 +53,7 @@ Creates a compressed SQL dump that can be restored with 'teeter restore'.`,
 				}
 				output = fmt.Sprintf("teeter-backup-%s-%s%s", m.Project.Name, timestamp, ext)
 			}
-
-			return runBackup(ctx, workDir, m, output, compress)
+			return runBackup(ctx, workDir, manifestDir, m, output, compress)
 		},
 	}
 
@@ -65,7 +64,7 @@ Creates a compressed SQL dump that can be restored with 'teeter restore'.`,
 	return cmd
 }
 
-func runBackup(ctx context.Context, workDir string, m *manifest.Manifest, outputPath string, compress bool) error {
+func runBackup(ctx context.Context, workDir, manifestDir string, m *manifest.Manifest, outputPath string, compress bool) error {
 	fmt.Printf("💾 Backing up databases for project %s...\n", m.Project.Name)
 
 	// Get runtime compose file
@@ -82,7 +81,7 @@ func runBackup(ctx context.Context, workDir string, m *manifest.Manifest, output
 
 	// Ensure database is running
 	fmt.Println("  Checking database...")
-	if err := ensureDatabaseRunning(ctx, workDir, composeFile); err != nil {
+	if err := ensureDatabaseRunning(ctx, manifestDir, m.Project.Name, composeFile); err != nil {
 		return fmt.Errorf("database not running: %w", err)
 	}
 
@@ -103,7 +102,7 @@ func runBackup(ctx context.Context, workDir string, m *manifest.Manifest, output
 	fmt.Println("  Dumping databases...")
 	for _, db := range databases {
 		fmt.Printf("    Dumping %s...\n", db)
-		sql, err := dumpDatabase(ctx, workDir, composeFile, mysqlRootPassword, db)
+		sql, err := dumpDatabase(ctx, manifestDir, m.Project.Name, composeFile, mysqlRootPassword, db)
 		if err != nil {
 			return fmt.Errorf("dump %s: %w", db, err)
 		}
@@ -149,9 +148,8 @@ func runBackup(ctx context.Context, workDir string, m *manifest.Manifest, output
 	return nil
 }
 
-func dumpDatabase(ctx context.Context, workDir, composeFile, password, database string) (string, error) {
+func dumpDatabase(ctx context.Context, manifestDir, projectName, composeFile, password, database string) (string, error) {
 	args := []string{
-		"compose", "-f", composeFile, "--profile", "core",
 		"exec", "-T", "ac-database",
 		"mysqldump",
 		"-u", "root",
@@ -164,12 +162,11 @@ func dumpDatabase(ctx context.Context, workDir, composeFile, password, database 
 		"--no-create-db",
 		database,
 	}
-	cmd := newDockerCommand(ctx, workDir, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		// Try without --no-create-db for older MySQL
 		args = []string{
-			"compose", "-f", composeFile, "--profile", "core",
 			"exec", "-T", "ac-database",
 			"mysqldump",
 			"-u", "root",
@@ -181,7 +178,7 @@ func dumpDatabase(ctx context.Context, workDir, composeFile, password, database 
 			"--hex-blob",
 			database,
 		}
-		cmd = newDockerCommand(ctx, workDir, args...)
+		cmd = newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 		output, err = cmd.Output()
 		if err != nil {
 			return "", err

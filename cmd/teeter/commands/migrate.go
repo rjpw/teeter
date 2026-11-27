@@ -53,7 +53,7 @@ Run 'teeter validate buildctx --ephemeral' first to test safely.`,
 
 			workDir := filepath.Dir(manifestDir)
 
-			return runMigrate(ctx, workDir, m, buildCtxHash, timeout, force)
+			return runMigrate(ctx, workDir, manifestDir, m, buildCtxHash, timeout, force)
 		},
 	}
 
@@ -65,9 +65,8 @@ Run 'teeter validate buildctx --ephemeral' first to test safely.`,
 	return cmd
 }
 
-func runMigrate(ctx context.Context, workDir string, m *manifest.Manifest, buildCtxHash string, timeout time.Duration, force bool) error {
+func runMigrate(ctx context.Context, workDir, manifestDir string, m *manifest.Manifest, buildCtxHash string, timeout time.Duration, force bool) error {
 	fmt.Printf("📦 Migrating persistent database using build context %s...\n", buildCtxHash[:min(12, len(buildCtxHash))])
-
 	// Load build context
 	bcPath := filepath.Join(workDir, ".teeter", "buildctx", buildCtxHash)
 	if _, err := os.Stat(bcPath); err != nil {
@@ -107,15 +106,15 @@ func runMigrate(ctx context.Context, workDir string, m *manifest.Manifest, build
 
 	// Ensure database is running
 	fmt.Println("  Checking database...")
-	if err := ensureDatabaseRunning(ctx, workDir, composeFile); err != nil {
+	if err := ensureDatabaseRunning(ctx, manifestDir, m.Project.Name, composeFile); err != nil {
 		return fmt.Errorf("database not running: %w", err)
 	}
 
 	// Run dbimport against persistent database
 	fmt.Println("  Running dbimport against persistent database...")
 	migrateStart := time.Now()
-	dbimportArgs := []string{"compose", "-f", composeFile, "--profile", "core", "run", "--rm", "ac-db-import"}
-	dbimportCmd := newDockerCommand(ctx, workDir, dbimportArgs...)
+	dbimportArgs := []string{"run", "--rm", "ac-db-import"}
+	dbimportCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dbimportArgs...)
 	dbimportOutput := &strings.Builder{}
 	dbimportCmd.Stdout = dbimportOutput
 	dbimportCmd.Stderr = dbimportOutput

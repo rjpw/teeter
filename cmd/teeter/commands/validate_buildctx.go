@@ -55,10 +55,10 @@ Without --ephemeral, validates against the build context's existing compose file
 			workDir := filepath.Dir(manifestDir)
 
 			if ephemeral {
-				return validateEphemeral(ctx, workDir, m, buildCtxHash, timeout)
+				return validateEphemeral(ctx, workDir, manifestDir, m, buildCtxHash, timeout)
 			}
 
-			return validateExisting(ctx, workDir, m, buildCtxHash, timeout)
+			return validateExisting(ctx, workDir, manifestDir, m, buildCtxHash, timeout)
 		},
 	}
 
@@ -70,9 +70,8 @@ Without --ephemeral, validates against the build context's existing compose file
 	return cmd
 }
 
-func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest, buildCtxHash string, timeout time.Duration) error {
+func validateEphemeral(ctx context.Context, workDir, manifestDir string, m *manifest.Manifest, buildCtxHash string, timeout time.Duration) error {
 	fmt.Printf("🔍 Validating build context %s with ephemeral database...\n", buildCtxHash[:min(12, len(buildCtxHash))])
-
 	// Load build context
 	bcPath := filepath.Join(workDir, ".teeter", "buildctx", buildCtxHash)
 	if _, err := os.Stat(bcPath); err != nil {
@@ -93,8 +92,8 @@ func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest
 
 	// Start ephemeral database only
 	fmt.Println("  Starting ephemeral database...")
-	upArgs := []string{"compose", "-f", ephemeralComposeFile, "--profile", "core", "up", "-d", "ac-database"}
-	upCmd := newDockerCommand(ctx, bcPath, upArgs...)
+	upArgs := []string{"up", "-d", "ac-database"}
+	upCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, upArgs...)
 	upCmd.Stdout = os.Stdout
 	upCmd.Stderr = os.Stderr
 	if err := upCmd.Run(); err != nil {
@@ -102,21 +101,21 @@ func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest
 	}
 
 	// Wait for database healthy
-	if err := waitForEphemeralHealth(ctx, bcPath, ephemeralComposeFile, timeout); err != nil {
-		tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+	if err := waitForEphemeralHealth(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, timeout); err != nil {
+		tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 		return fmt.Errorf("ephemeral database unhealthy: %w", err)
 	}
 
 	// Run dbimport
 	fmt.Println("  Running dbimport (dry-run)...")
-	dbimportArgs := []string{"compose", "-f", ephemeralComposeFile, "--profile", "core", "run", "--rm", "ac-db-import"}
-	dbimportCmd := newDockerCommand(ctx, bcPath, dbimportArgs...)
+	dbimportArgs := []string{"run", "--rm", "ac-db-import"}
+	dbimportCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, dbimportArgs...)
 	dbimportOutput := &strings.Builder{}
 	dbimportCmd.Stdout = dbimportOutput
 	dbimportCmd.Stderr = dbimportOutput
 	dbimportStart := time.Now()
 	if err := dbimportCmd.Run(); err != nil {
-		tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+		tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 		return fmt.Errorf("dbimport failed: %w", err)
 	}
 	dbimportEnd := time.Now()
@@ -132,12 +131,12 @@ func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest
 
 	// Optionally start authserver/worldserver briefly
 	fmt.Println("  Starting authserver briefly...")
-	authArgs := []string{"compose", "-f", ephemeralComposeFile, "--profile", "core", "up", "-d", "ac-authserver"}
-	authCmd := newDockerCommand(ctx, bcPath, authArgs...)
+	authArgs := []string{"up", "-d", "ac-authserver"}
+	authCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, authArgs...)
 	authCmd.Stdout = os.Stdout
 	authCmd.Stderr = os.Stderr
 	if err := authCmd.Run(); err != nil {
-		tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+		tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 		return fmt.Errorf("authserver failed: %w", err)
 	}
 
@@ -145,8 +144,8 @@ func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest
 	time.Sleep(10 * time.Second)
 
 	// Check authserver is running
-	if err := checkEphemeralService(ctx, bcPath, ephemeralComposeFile, "ac-authserver"); err != nil {
-		tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+	if err := checkEphemeralService(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, "ac-authserver"); err != nil {
+		tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 		return fmt.Errorf("authserver not running: %w", err)
 	}
 
@@ -154,26 +153,26 @@ func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest
 
 	// Start worldserver briefly
 	fmt.Println("  Starting worldserver briefly...")
-	worldArgs := []string{"compose", "-f", ephemeralComposeFile, "--profile", "core", "up", "-d", "ac-worldserver"}
-	worldCmd := newDockerCommand(ctx, bcPath, worldArgs...)
+	worldArgs := []string{"up", "-d", "ac-worldserver"}
+	worldCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, worldArgs...)
 	worldCmd.Stdout = os.Stdout
 	worldCmd.Stderr = os.Stderr
 	if err := worldCmd.Run(); err != nil {
-		tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+		tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 		return fmt.Errorf("worldserver failed: %w", err)
 	}
 
 	time.Sleep(10 * time.Second)
 
-	if err := checkEphemeralService(ctx, bcPath, ephemeralComposeFile, "ac-worldserver"); err != nil {
-		tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+	if err := checkEphemeralService(ctx, manifestDir, m.Project.Name, ephemeralComposeFile, "ac-worldserver"); err != nil {
+		tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 		return fmt.Errorf("worldserver not running: %w", err)
 	}
 
 	fmt.Println("  ✅ Worldserver connected successfully")
 
 	// Tear down
-	tearDownEphemeral(ctx, bcPath, ephemeralComposeFile)
+	tearDownEphemeral(ctx, manifestDir, m.Project.Name, ephemeralComposeFile)
 
 	fmt.Printf("\n✅ Validation PASSED for build context %s\n", buildCtxHash[:min(12, len(buildCtxHash))])
 	fmt.Println("   - Database initialization: OK")
@@ -184,7 +183,7 @@ func validateEphemeral(ctx context.Context, workDir string, m *manifest.Manifest
 	return nil
 }
 
-func validateExisting(ctx context.Context, workDir string, m *manifest.Manifest, buildCtxHash string, timeout time.Duration) error {
+func validateExisting(ctx context.Context, workDir, manifestDir string, m *manifest.Manifest, buildCtxHash string, timeout time.Duration) error {
 	fmt.Printf("🔍 Validating build context %s against existing compose...\n", buildCtxHash[:min(12, len(buildCtxHash))])
 
 	// Just verify the build context has all required files
@@ -257,7 +256,7 @@ func generateEphemeralCompose(bcPath string, m *manifest.Manifest, ephemeralHash
 	return ephemeralContent, nil
 }
 
-func waitForEphemeralHealth(ctx context.Context, bcPath, composeFile string, timeout time.Duration) error {
+func waitForEphemeralHealth(ctx context.Context, manifestDir, projectName, composeFile string, timeout time.Duration) error {
 	profileArgs := []string{"--profile", "core"}
 	start := time.Now()
 	checkInterval := 5 * time.Second
@@ -267,7 +266,7 @@ func waitForEphemeralHealth(ctx context.Context, bcPath, composeFile string, tim
 		if time.Since(start) > timeout {
 			return fmt.Errorf("timeout waiting for database")
 		}
-		if err := checkEphemeralServiceHealth(ctx, bcPath, composeFile, profileArgs, "ac-database"); err == nil {
+		if err := checkEphemeralServiceHealth(ctx, manifestDir, projectName, composeFile, profileArgs, "ac-database"); err == nil {
 			fmt.Println("  ✅ Database healthy")
 			break
 		}
@@ -277,11 +276,10 @@ func waitForEphemeralHealth(ctx context.Context, bcPath, composeFile string, tim
 	return nil
 }
 
-func checkEphemeralServiceHealth(ctx context.Context, bcPath, composeFile string, profileArgs []string, service string) error {
-	args := []string{"compose", "-f", composeFile}
-	args = append(args, profileArgs...)
-	args = append(args, "ps", "--format", "json", service)
-	cmd := newDockerCommand(ctx, bcPath, args...)
+func checkEphemeralServiceHealth(ctx context.Context, manifestDir, projectName, composeFile string, profileArgs []string, service string) error {
+	args := []string{"ps", "--format", "json", service}
+	args = append(profileArgs, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -297,18 +295,16 @@ func checkEphemeralServiceHealth(ctx context.Context, bcPath, composeFile string
 	}
 
 	// Check health via docker exec
-	healthArgs := []string{"compose", "-f", composeFile}
-	healthArgs = append(healthArgs, profileArgs...)
-	healthArgs = append(healthArgs, "exec", "-T", service, "sh", "-c", "exit 0")
-	healthCmd := newDockerCommand(ctx, bcPath, healthArgs...)
+	healthArgs := []string{"exec", "-T", service, "sh", "-c", "exit 0"}
+	healthArgs = append(profileArgs, healthArgs...)
+	healthCmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, healthArgs...)
 	return healthCmd.Run()
 }
 
-func checkEphemeralServiceCompleted(ctx context.Context, bcPath, composeFile string, profileArgs []string, service string) error {
-	args := []string{"compose", "-f", composeFile}
-	args = append(args, profileArgs...)
-	args = append(args, "ps", "--format", "json", service)
-	cmd := newDockerCommand(ctx, bcPath, args...)
+func checkEphemeralServiceCompleted(ctx context.Context, manifestDir, projectName, composeFile string, profileArgs []string, service string) error {
+	args := []string{"ps", "--format", "json", service}
+	args = append(profileArgs, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -329,9 +325,10 @@ func checkEphemeralServiceCompleted(ctx context.Context, bcPath, composeFile str
 	return fmt.Errorf("service exited with non-zero code")
 }
 
-func checkEphemeralService(ctx context.Context, bcPath, composeFile string, service string) error {
-	args := []string{"compose", "-f", composeFile, "--profile", "core", "ps", "--format", "json", service}
-	cmd := newDockerCommand(ctx, bcPath, args...)
+func checkEphemeralService(ctx context.Context, manifestDir, projectName, composeFile string, service string) error {
+	args := []string{"ps", "--format", "json", service}
+	args = append([]string{"--profile", "core"}, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -348,10 +345,10 @@ func checkEphemeralService(ctx context.Context, bcPath, composeFile string, serv
 	return fmt.Errorf("service not running")
 }
 
-func tearDownEphemeral(ctx context.Context, bcPath, composeFile string) {
+func tearDownEphemeral(ctx context.Context, manifestDir, projectName, composeFile string) {
 	fmt.Println("  Tearing down ephemeral stack...")
-	args := []string{"compose", "-f", composeFile, "down", "-v"}
-	cmd := newDockerCommand(ctx, bcPath, args...)
+	args := []string{"down", "-v"}
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	cmd.Run()
 	// Remove ephemeral compose file
 	os.Remove(composeFile)

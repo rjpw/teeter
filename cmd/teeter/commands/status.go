@@ -69,11 +69,10 @@ func NewStatusCmd() *cobra.Command {
 			profileArgs := GetProfileArgs(m)
 
 			// Get service status from docker compose
-			dockerArgs := []string{"compose", "-f", composeFile}
-			dockerArgs = append(dockerArgs, profileArgs...)
-			dockerArgs = append(dockerArgs, "ps", "--format", "json")
+			dockerArgs := []string{"ps", "--format", "json"}
+			dockerArgs = append(profileArgs, dockerArgs...)
 
-			statusCmd := newDockerCommand(ctx, bc.Path, dockerArgs...)
+			statusCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dockerArgs...)
 			var output []byte
 			output, err = statusCmd.Output()
 			if err != nil {

@@ -165,11 +165,11 @@ func NewUpCmd() *cobra.Command {
 			// Build images if requested
 			if build {
 				fmt.Println("Building images...")
-				buildArgs := []string{"compose", "-f", composeFile, "build"}
+				buildArgs := []string{"build"}
 				if build {
 					buildArgs = append(buildArgs, "--no-cache")
 				}
-				buildCmd := newDockerCommand(ctx, bc.Path, buildArgs...)
+				buildCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, buildArgs...)
 				buildCmd.Stdout = os.Stdout
 				buildCmd.Stderr = os.Stderr
 				if err := buildCmd.Run(); err != nil {
@@ -180,8 +180,8 @@ func NewUpCmd() *cobra.Command {
 			// Pull upstream images if not --no-pull
 			if !noPull {
 				fmt.Println("Pulling upstream images...")
-				pullArgs := []string{"compose", "-f", composeFile, "pull", "--ignore-pull-failures"}
-				pullCmd := newDockerCommand(ctx, bc.Path, pullArgs...)
+				pullArgs := []string{"pull", "--ignore-pull-failures"}
+				pullCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, pullArgs...)
 				pullCmd.Stdout = os.Stdout
 				pullCmd.Stderr = os.Stderr
 				if err := pullCmd.Run(); err != nil {
@@ -191,13 +191,13 @@ func NewUpCmd() *cobra.Command {
 
 			// Start services
 			fmt.Println("Starting AzerothCore server...")
-			upArgs := []string{"compose", "-f", composeFile}
+			upArgs := []string{}
 			upArgs = append(upArgs, GetProfileArgs(m)...)
 			upArgs = append(upArgs, "up")
 			if detach {
 				upArgs = append(upArgs, "-d")
 			}
-			upCmd := newDockerCommand(ctx, bc.Path, upArgs...)
+			upCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, upArgs...)
 			upCmd.Stdout = os.Stdout
 			upCmd.Stderr = os.Stderr
 			if err := upCmd.Run(); err != nil {
@@ -205,7 +205,7 @@ func NewUpCmd() *cobra.Command {
 			}
 
 			if wait && detach {
-				if err := waitForHealth(ctx, bc.Path, composeFile, timeout); err != nil {
+				if err := waitForHealth(ctx, manifestDir, m.Project.Name, composeFile, timeout); err != nil {
 					return fmt.Errorf("wait for health: %w", err)
 				}
 			}
@@ -228,7 +228,7 @@ func NewUpCmd() *cobra.Command {
 	return cmd
 }
 
-func waitForHealth(ctx context.Context, projectDir, composeFile string, timeout time.Duration) error {
+func waitForHealth(ctx context.Context, manifestDir, projectName, composeFile string, timeout time.Duration) error {
 	fmt.Println("Waiting for services to become healthy...")
 
 	profileArgs := GetProfileArgsFromComposeFile(composeFile)
@@ -241,19 +241,19 @@ func waitForHealth(ctx context.Context, projectDir, composeFile string, timeout 
 		healthCheck func() error
 	}{
 		{"ac-database", func() error {
-			return checkServiceHealth(ctx, projectDir, composeFile, profileArgs, "ac-database")
+			return checkServiceHealth(ctx, manifestDir, projectName, composeFile, profileArgs, "ac-database")
 		}},
 		{"ac-db-import", func() error {
-			return checkServiceCompleted(ctx, projectDir, composeFile, profileArgs, "ac-db-import")
+			return checkServiceCompleted(ctx, manifestDir, projectName, composeFile, profileArgs, "ac-db-import")
 		}},
 		{"ac-client-data-init", func() error {
-			return checkServiceCompleted(ctx, projectDir, composeFile, profileArgs, "ac-client-data-init")
+			return checkServiceCompleted(ctx, manifestDir, projectName, composeFile, profileArgs, "ac-client-data-init")
 		}},
 		{"ac-authserver", func() error {
-			return checkServiceRunning(ctx, projectDir, composeFile, profileArgs, "ac-authserver")
+			return checkServiceRunning(ctx, manifestDir, projectName, composeFile, profileArgs, "ac-authserver")
 		}},
 		{"ac-worldserver", func() error {
-			return checkServiceRunning(ctx, projectDir, composeFile, profileArgs, "ac-worldserver")
+			return checkServiceRunning(ctx, manifestDir, projectName, composeFile, profileArgs, "ac-worldserver")
 		}},
 	}
 
@@ -280,11 +280,10 @@ func waitForHealth(ctx context.Context, projectDir, composeFile string, timeout 
 	return nil
 }
 
-func checkServiceRunning(ctx context.Context, projectDir, composeFile string, profileArgs []string, service string) error {
-	args := []string{"compose", "-f", composeFile}
-	args = append(args, profileArgs...)
-	args = append(args, "ps", "--format", "json", service)
-	cmd := newDockerCommand(ctx, projectDir, args...)
+func checkServiceRunning(ctx context.Context, manifestDir, projectName, composeFile string, profileArgs []string, service string) error {
+	args := []string{"ps", "--format", "json", service}
+	args = append(profileArgs, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -309,11 +308,10 @@ func GetProfileArgsFromComposeFile(composeFile string) []string {
 	return []string{"--profile", "core"}
 }
 
-func checkServiceHealth(ctx context.Context, projectDir, composeFile string, profileArgs []string, service string) error {
-	args := []string{"compose", "-f", composeFile}
-	args = append(args, profileArgs...)
-	args = append(args, "ps", "--format", "json", service)
-	cmd := newDockerCommand(ctx, projectDir, args...)
+func checkServiceHealth(ctx context.Context, manifestDir, projectName, composeFile string, profileArgs []string, service string) error {
+	args := []string{"ps", "--format", "json", service}
+	args = append(profileArgs, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -330,18 +328,16 @@ func checkServiceHealth(ctx context.Context, projectDir, composeFile string, pro
 	}
 
 	// Check health via docker exec (for services with healthcheck)
-	healthArgs := []string{"compose", "-f", composeFile}
-	healthArgs = append(healthArgs, profileArgs...)
-	healthArgs = append(healthArgs, "exec", "-T", service, "sh", "-c", "exit 0")
-	healthCmd := newDockerCommand(ctx, projectDir, healthArgs...)
+	healthArgs := []string{"exec", "-T", service, "sh", "-c", "exit 0"}
+	healthArgs = append(profileArgs, healthArgs...)
+	healthCmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, healthArgs...)
 	return healthCmd.Run()
 }
 
-func checkServiceCompleted(ctx context.Context, projectDir, composeFile string, profileArgs []string, service string) error {
-	args := []string{"compose", "-f", composeFile}
-	args = append(args, profileArgs...)
-	args = append(args, "ps", "--format", "json", service)
-	cmd := newDockerCommand(ctx, projectDir, args...)
+func checkServiceCompleted(ctx context.Context, manifestDir, projectName, composeFile string, profileArgs []string, service string) error {
+	args := []string{"ps", "--format", "json", service}
+	args = append(profileArgs, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err

@@ -59,22 +59,16 @@ func NewDownCmd() *cobra.Command {
 				timeout = 30 * time.Second
 			}
 
-			// Get profiles from manifest
-			profileArgs := GetProfileArgs(m)
-
 			// docker compose down
 			fmt.Println("Stopping services...")
-			downArgs := []string{"compose", "-f", composeFile}
-			downArgs = append(downArgs, profileArgs...)
-			downArgs = append(downArgs, "down", "--timeout", fmt.Sprintf("%d", int(timeout.Seconds())))
+			downArgs := []string{"down", "--timeout", fmt.Sprintf("%d", int(timeout.Seconds()))}
 			if volumes {
 				downArgs = append(downArgs, "-v")
 			}
 			if rmi != "" {
 				downArgs = append(downArgs, "--rmi", rmi)
 			}
-
-			downCmd := newDockerCommand(ctx, bc.Path, downArgs...)
+			downCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, downArgs...)
 			downCmd.Stdout = os.Stdout
 			downCmd.Stderr = os.Stderr
 			if err := downCmd.Run(); err != nil {

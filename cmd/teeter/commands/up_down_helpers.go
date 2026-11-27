@@ -115,8 +115,12 @@ func FindManifest(workDir string) string {
 }
 
 // newDockerCommand creates a docker command with proper environment
-func newDockerCommand(ctx context.Context, dir string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "docker", args...)
-	cmd.Dir = dir
+func newDockerCommand(ctx context.Context, manifestDir, projectName, composeFile string, args ...string) *exec.Cmd {
+	// Use manifest directory as working directory, set project name explicitly
+	// This ensures stable volume names (project-name_volume) instead of hash-prefixed
+	dockerArgs := []string{"compose", "-p", projectName, "-f", composeFile}
+	dockerArgs = append(dockerArgs, args...)
+	cmd := exec.CommandContext(ctx, "docker", dockerArgs...)
+	cmd.Dir = manifestDir
 	return cmd
 }

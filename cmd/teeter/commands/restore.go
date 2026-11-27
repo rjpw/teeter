@@ -49,7 +49,7 @@ determines which compose file to use (runtime or build context).`,
 
 			workDir := filepath.Dir(manifestDir)
 
-			return runRestore(ctx, workDir, m, input, buildCtxHash, force)
+			return runRestore(ctx, workDir, manifestDir, m, input, buildCtxHash, force)
 		},
 	}
 
@@ -61,7 +61,7 @@ determines which compose file to use (runtime or build context).`,
 	return cmd
 }
 
-func runRestore(ctx context.Context, workDir string, m *manifest.Manifest, inputPath, buildCtxHash string, force bool) error {
+func runRestore(ctx context.Context, workDir, manifestDir string, m *manifest.Manifest, inputPath, buildCtxHash string, force bool) error {
 	fmt.Printf("♻️  Restoring databases for project %s from %s...\n", m.Project.Name, inputPath)
 
 	// Check input file exists
@@ -94,7 +94,7 @@ func runRestore(ctx context.Context, workDir string, m *manifest.Manifest, input
 
 	// Ensure database is running
 	fmt.Println("  Checking database...")
-	if err := ensureDatabaseRunning(ctx, workDir, composeFile); err != nil {
+	if err := ensureDatabaseRunning(ctx, manifestDir, m.Project.Name, composeFile); err != nil {
 		return fmt.Errorf("database not running: %w", err)
 	}
 
@@ -119,7 +119,7 @@ func runRestore(ctx context.Context, workDir string, m *manifest.Manifest, input
 
 		if !force {
 			// Check if database has data
-			hasData, err := databaseHasData(ctx, workDir, composeFile, mysqlRootPassword, db)
+			hasData, err := databaseHasData(ctx, manifestDir, m.Project.Name, composeFile, mysqlRootPassword, db)
 			if err != nil {
 				return fmt.Errorf("check database %s: %w", db, err)
 			}
@@ -129,7 +129,7 @@ func runRestore(ctx context.Context, workDir string, m *manifest.Manifest, input
 		}
 
 		fmt.Printf("  Restoring %s...\n", db)
-		if err := restoreDatabase(ctx, workDir, composeFile, mysqlRootPassword, db, dump); err != nil {
+		if err := restoreDatabase(ctx, manifestDir, m.Project.Name, composeFile, mysqlRootPassword, db, dump); err != nil {
 			return fmt.Errorf("restore %s: %w", db, err)
 		}
 		fmt.Printf("  ✅ %s restored\n", db)
@@ -185,14 +185,13 @@ func parseBackupContent(content string) map[string]string {
 	return dumps
 }
 
-func databaseHasData(ctx context.Context, workDir, composeFile, password, database string) (bool, error) {
+func databaseHasData(ctx context.Context, manifestDir, projectName, composeFile, password, database string) (bool, error) {
 	args := []string{
-		"compose", "-f", composeFile, "--profile", "core",
 		"exec", "-T", "ac-database",
 		"mysql", "-u", "root", "-p" + password,
 		"-e", fmt.Sprintf("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='%s'", database),
 	}
-	cmd := newDockerCommand(ctx, workDir, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return false, err
@@ -211,17 +210,16 @@ func databaseHasData(ctx context.Context, workDir, composeFile, password, databa
 	return false, nil
 }
 
-func restoreDatabase(ctx context.Context, workDir, composeFile, password, database, dump string) error {
+func restoreDatabase(ctx context.Context, manifestDir, projectName, composeFile, password, database, dump string) error {
 	// Use mysql command to restore with increased max_allowed_packet
 	args := []string{
-		"compose", "-f", composeFile, "--profile", "core",
 		"exec", "-T", "ac-database",
 		"mysql", "-u", "root", "-p" + password,
 		"--max-allowed-packet=1G",
 		"--net-buffer-length=1M",
 		database,
 	}
-	cmd := newDockerCommand(ctx, workDir, args...)
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	cmd.Stdin = strings.NewReader(dump)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

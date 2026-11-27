@@ -27,9 +27,9 @@ func listBuildContexts(workDir string) ([]string, error) {
 }
 
 // ensureDatabaseRunning checks if the database container is running and healthy.
-func ensureDatabaseRunning(ctx context.Context, workDir, composeFile string) error {
-	args := []string{"compose", "-f", composeFile, "--profile", "core", "ps", "--format", "json", "ac-database"}
-	cmd := newDockerCommand(ctx, workDir, args...)
+func ensureDatabaseRunning(ctx context.Context, manifestDir, projectName, composeFile string) error {
+	args := []string{"ps", "--format", "json", "ac-database"}
+	cmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -45,8 +45,8 @@ func ensureDatabaseRunning(ctx context.Context, workDir, composeFile string) err
 	}
 
 	// Check health
-	healthArgs := []string{"compose", "-f", composeFile, "--profile", "core", "exec", "-T", "ac-database", "sh", "-c", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"}
-	healthCmd := newDockerCommand(ctx, workDir, healthArgs...)
+	healthArgs := []string{"exec", "-T", "ac-database", "sh", "-c", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"}
+	healthCmd := newDockerCommand(ctx, manifestDir, projectName, composeFile, healthArgs...)
 	return healthCmd.Run()
 }
 
