@@ -216,7 +216,7 @@ func NewUpCmd() *cobra.Command {
 
 			// 2. Run dbimport (oneshot)
 			fmt.Println("  [2/5] Running database import...")
-			dbimportArgs := []string{"run", "--rm", "ac-db-import"}
+			dbimportArgs := []string{"run", "--rm", "-T", "ac-db-import"}
 			dbimportArgs = append(GetProfileArgs(m), dbimportArgs...)
 			dbimportCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, dbimportArgs...)
 			dbimportCmd.Stdout = os.Stdout
@@ -228,7 +228,7 @@ func NewUpCmd() *cobra.Command {
 
 			// 3. Run client-data-init (oneshot)
 			fmt.Println("  [3/5] Initializing client data...")
-			clientDataArgs := []string{"run", "--rm", "ac-client-data-init"}
+			clientDataArgs := []string{"run", "--rm", "-T", "ac-client-data-init"}
 			clientDataArgs = append(GetProfileArgs(m), clientDataArgs...)
 			clientDataCmd := newDockerCommand(ctx, manifestDir, m.Project.Name, composeFile, clientDataArgs...)
 			clientDataCmd.Stdout = os.Stdout
